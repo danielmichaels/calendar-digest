@@ -52,6 +52,39 @@ type TargetRow struct {
 	Enabled bool
 }
 
+// RecipientFormView is the add/edit page.
+//
+// It carries the values the visitor typed rather than the ones on the row, so
+// a rejected save comes back with their input intact and the reason next to
+// the field that caused it.
+type RecipientFormView struct {
+	Title string
+	// New reports a create form, which has no targets and no delete button.
+	New        bool
+	ID         int64
+	Name       string
+	CalendarID string
+	NotifyTime string
+	Tz         string
+	Enabled    bool
+	// Problems are validation messages keyed by field name.
+	Problems map[string]string
+	Targets  []TargetFormRow
+}
+
+// TargetFormRow is one channel, and is patched on its own: toggling or testing
+// one must not disturb the others or lose what is on screen.
+type TargetFormRow struct {
+	ID      int64
+	Kind    string
+	Address string
+	Enabled bool
+	// Status is the outcome of the last test send on this row, empty until one
+	// has been tried. It is not persisted — a test result is about now.
+	Status   string
+	StatusOK bool
+}
+
 type UndeliveredRow struct {
 	RecipientName string
 	DigestDate    string

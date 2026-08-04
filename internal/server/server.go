@@ -29,6 +29,10 @@ type Deps struct {
 	Log  *slog.Logger
 	Db   *store.Queries
 	Jobs *jobs.Client
+	// Notifiers is the same map the workers deliver through, handed to the UI
+	// so its "send test" button exercises the real path rather than a
+	// simulation of it.
+	Notifiers map[string]jobs.Notifier
 }
 
 type App struct {

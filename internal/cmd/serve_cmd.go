@@ -69,13 +69,17 @@ func (s *ServeCmd) Run() error {
 	}
 	defer app.Close()
 
+	notifiers := buildNotifiers(app)
 	deps := server.Deps{
 		Conf: app.Config,
 		Log:  app.Logger,
 		Db:   app.Store,
+		// The same map the workers use, so a "send test" from the UI proves the
+		// configuration a nightly run depends on.
+		Notifiers: notifiers,
 	}
 
-	jobDeps := &jobs.Deps{Notifiers: buildNotifiers(app)}
+	jobDeps := &jobs.Deps{Notifiers: notifiers}
 	if credential := app.Config.AppConf.GoogleServiceAccountJSON; credential != "" {
 		cal, err := calendar.NewGoogleClient(app.Ctx, credential)
 		if err != nil {

@@ -1,0 +1,225 @@
+package templates
+
+import "fmt"
+
+// RecipientForm is the whole page. RecipientFormBody below is the part a
+// rejected save patches, so validation messages arrive without the browser
+// re-rendering the shell or losing what is on screen elsewhere.
+templ RecipientForm(v RecipientFormView) {
+	@Layout(v.Title) {
+		<div class="mx-auto max-w-2xl px-5 py-10 sm:py-14">
+			<a href="/app" class="text-sm text-neutral-500 underline underline-offset-2 dark:text-neutral-400">
+				&larr; All recipients
+			</a>
+			@RecipientFormBody(v)
+			if !v.New {
+				@Targets(v.ID, v.Targets, "")
+				<div class="mt-12 border-t border-neutral-200 pt-6 dark:border-neutral-800">
+					<button
+						type="button"
+						class="text-sm text-red-700 underline underline-offset-2 dark:text-red-400"
+						data-on:click={ fmt.Sprintf(
+							"if(!confirm('Remove %s and every digest captured for them? This cannot be undone.')) return; @delete('/app/recipients/%d')",
+							v.Name, v.ID) }
+					>Remove this recipient</button>
+				</div>
+			}
+		</div>
+	}
+}
+
+templ RecipientFormBody(v RecipientFormView) {
+	<form
+		id="recipient-form"
+		class="mt-6"
+		data-on:submit__prevent={ formAction(v) }
+	>
+		<h1 class="text-2xl font-semibold tracking-tight">
+			if v.New {
+				Add recipient
+			} else {
+				{ v.Name }
+			}
+		</h1>
+		@field("Name", "name", v.Problems) {
+			<input
+				type="text"
+				data-bind="name"
+				value={ v.Name }
+				autocomplete="off"
+				class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+			/>
+		}
+		@field("Calendar ID", "calendar_id", v.Problems) {
+			<input
+				type="text"
+				data-bind="calendar_id"
+				value={ v.CalendarID }
+				autocomplete="off"
+				placeholder="dan@example.com"
+				class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+			/>
+			<p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+				The calendar shared with the service account, usually an email address.
+			</p>
+		}
+		<div class="mt-5 grid gap-5 sm:grid-cols-2">
+			@field("Notify time", "notify_time", v.Problems) {
+				<input
+					type="time"
+					data-bind="notify_time"
+					value={ v.NotifyTime }
+					class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+				/>
+				<p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+					Local to the timezone below. The digest covers the next day.
+				</p>
+			}
+			@field("Timezone", "tz", v.Problems) {
+				<input
+					type="text"
+					data-bind="tz"
+					value={ v.Tz }
+					autocomplete="off"
+					placeholder="Australia/Brisbane"
+					class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+				/>
+				<p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+					An IANA name. Anything else and this recipient never receives a digest.
+				</p>
+			}
+		</div>
+		<label class="mt-5 flex items-center gap-2 text-sm">
+			<input type="checkbox" data-bind="enabled" checked?={ v.Enabled } class="size-4"/>
+			Enabled
+		</label>
+		<button
+			type="submit"
+			class="mt-6 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
+		>
+			if v.New {
+				Add recipient
+			} else {
+				Save
+			}
+		</button>
+	</form>
+}
+
+func formAction(v RecipientFormView) string {
+	if v.New {
+		return "@post('/app/recipients')"
+	}
+	return fmt.Sprintf("@post('/app/recipients/%d')", v.ID)
+}
+
+// field wraps one input with its label and, when the last save rejected it,
+// the reason — next to the field rather than in a summary, so there is nothing
+// to match up.
+templ field(label, name string, problems map[string]string) {
+	<div class="mt-5">
+		<label class="block text-sm font-medium">{ label }</label>
+		{ children... }
+		if problem, ok := problems[name]; ok {
+			<p class="mt-1 text-sm text-red-700 dark:text-red-400">{ problem }</p>
+		}
+	</div>
+}
+
+// Targets is the channel list and the form that adds to it. Patched whole when
+// a target is added, because the empty state and the list are the same region.
+templ Targets(recipientID int64, targets []TargetFormRow, problem string) {
+	<section id="targets" class="mt-12">
+		<h2 class="text-lg font-medium">Channels</h2>
+		if len(targets) == 0 {
+			<p class="mt-2 text-sm text-amber-700 dark:text-amber-500">
+				None yet, so this recipient receives nothing.
+			</p>
+		} else {
+			<ul class="mt-3 divide-y divide-neutral-200 dark:divide-neutral-800">
+				for _, t := range targets {
+					@ChannelRow(t)
+				}
+			</ul>
+		}
+		<div
+			class="mt-6 rounded-md border border-neutral-200 p-4 dark:border-neutral-800"
+			data-signals="{kind: 'telegram', address: ''}"
+		>
+			<div class="flex flex-wrap items-end gap-3">
+				<label class="text-sm">
+					<span class="block font-medium">Channel</span>
+					<select
+						data-bind="kind"
+						class="mt-1 rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+					>
+						<option value="telegram">Telegram</option>
+						<option value="email">Email</option>
+						<option value="sms">SMS</option>
+					</select>
+				</label>
+				<label class="grow text-sm">
+					<span
+						class="block font-medium"
+						data-text="$kind === 'telegram' ? 'Chat ID' : $kind === 'email' ? 'Email address' : 'Phone number'"
+					>Chat ID</span>
+					<input
+						type="text"
+						data-bind="address"
+						autocomplete="off"
+						class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+					/>
+				</label>
+				<button
+					type="button"
+					class="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
+					data-on:click={ fmt.Sprintf("@post('/app/recipients/%d/targets')", recipientID) }
+				>Add channel</button>
+			</div>
+			if problem != "" {
+				<p class="mt-2 text-sm text-red-700 dark:text-red-400">{ problem }</p>
+			}
+			<p class="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+				SMS renders but does not send: the webhook is not implemented yet.
+			</p>
+		</div>
+	</section>
+}
+
+templ ChannelRow(t TargetFormRow) {
+	<li id={ fmt.Sprintf("target-%d", t.ID) } class="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-3">
+		<span class="text-sm font-medium">{ t.Kind }</span>
+		<span class="grow text-sm text-neutral-500 dark:text-neutral-400">{ t.Address }</span>
+		if !t.Enabled {
+			<span class="text-xs text-neutral-400 dark:text-neutral-500">off</span>
+		}
+		<button
+			type="button"
+			class="text-sm text-neutral-500 underline underline-offset-2 dark:text-neutral-400"
+			data-on:click={ fmt.Sprintf("@post('/app/targets/%d/toggle')", t.ID) }
+		>
+			if t.Enabled {
+				Disable
+			} else {
+				Enable
+			}
+		</button>
+		<button
+			type="button"
+			class="text-sm text-neutral-500 underline underline-offset-2 dark:text-neutral-400"
+			data-on:click={ fmt.Sprintf("@post('/app/targets/%d/test')", t.ID) }
+		>Send test</button>
+		<button
+			type="button"
+			class="text-sm text-red-700 underline underline-offset-2 dark:text-red-400"
+			data-on:click={ fmt.Sprintf(
+				"if(!confirm('Remove this channel?')) return; @delete('/app/targets/%d')", t.ID) }
+		>Remove</button>
+		if t.Status != "" {
+			<p
+				class={ "w-full text-sm", templ.KV("text-emerald-700 dark:text-emerald-400", t.StatusOK),
+					templ.KV("text-red-700 dark:text-red-400", !t.StatusOK) }
+			>{ t.Status }</p>
+		}
+	</li>
+}

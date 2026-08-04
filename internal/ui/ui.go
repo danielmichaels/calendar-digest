@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/danielmichaels/calendar-digest/internal/config"
+	"github.com/danielmichaels/calendar-digest/internal/jobs"
 	"github.com/danielmichaels/calendar-digest/internal/store"
 
 	"github.com/alexedwards/scs/v2"
@@ -29,6 +30,11 @@ type Deps struct {
 	// digest has been undelivered long enough to be worth shouting about. Nil
 	// means time.Now.
 	Now func() time.Time
+	// Notifiers is what "send test" delivers through — the same map the job
+	// layer uses, so a test exercises the renderer, transport and credential a
+	// nightly run would. A kind missing here is a channel this server cannot
+	// deliver at all, and the button says so.
+	Notifiers map[string]jobs.Notifier
 }
 
 func (d *Deps) now() time.Time {
@@ -52,6 +58,17 @@ func (h *Handlers) Routes() http.Handler {
 	r := chi.NewRouter()
 
 	r.Get("/", h.handleHome)
+
+	r.Get("/recipients/new", h.handleRecipientNew)
+	r.Post("/recipients", h.handleRecipientCreate)
+	r.Get("/recipients/{id}", h.handleRecipientEdit)
+	r.Post("/recipients/{id}", h.handleRecipientUpdate)
+	r.Delete("/recipients/{id}", h.handleRecipientDelete)
+
+	r.Post("/recipients/{id}/targets", h.handleTargetCreate)
+	r.Post("/targets/{id}/toggle", h.handleTargetToggle)
+	r.Post("/targets/{id}/test", h.handleTargetTest)
+	r.Delete("/targets/{id}", h.handleTargetDelete)
 
 	return r
 }

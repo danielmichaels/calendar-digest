@@ -124,17 +124,36 @@ func (h *Handlers) recipientRow(
 	return row
 }
 
-// scheduleProblem says which half of the schedule is unreadable, in terms of
-// the field somebody has to go and edit.
+// tzProblem and notifyTimeProblem return the empty string when the value is
+// usable.
 //
-// It re-derives rather than printing NextRun's error: that error is wrapped for
-// a log — package prefixes, recipient ids — and this is the sentence a person
-// reads before fixing the row.
-func scheduleProblem(r store.Recipients) string {
-	if _, err := time.LoadLocation(r.Tz); err != nil {
-		return fmt.Sprintf("%q is not a timezone this server knows.", r.Tz)
+// They re-derive rather than printing NextRun's error: that error is wrapped
+// for a log — package prefixes, recipient ids — and these are the sentences
+// somebody reads while editing the field. The form uses them to refuse a
+// schedule that would silently never fire; the overview uses them to explain
+// one that already does not.
+func tzProblem(tz string) string {
+	if tz == "" {
+		return "A timezone is required: it decides which day the digest covers."
 	}
-	return fmt.Sprintf("%q is not a notify time; it has to be HH:MM on a 24-hour clock.", r.NotifyTime)
+	if _, err := time.LoadLocation(tz); err != nil {
+		return fmt.Sprintf("%q is not a timezone this server knows.", tz)
+	}
+	return ""
+}
+
+func notifyTimeProblem(notifyTime string) string {
+	if _, err := time.Parse("15:04", notifyTime); err != nil {
+		return fmt.Sprintf("%q is not a notify time; it has to be HH:MM on a 24-hour clock.", notifyTime)
+	}
+	return ""
+}
+
+func scheduleProblem(r store.Recipients) string {
+	if problem := tzProblem(r.Tz); problem != "" {
+		return problem
+	}
+	return notifyTimeProblem(r.NotifyTime)
 }
 
 // targetAddress pulls the human-readable part out of a target's config so the

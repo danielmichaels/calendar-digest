@@ -44,10 +44,11 @@ func (app *App) Routes() http.Handler {
 	app.registerEndpoints(api)
 
 	pages := ui.New(ui.Deps{
-		Conf:     app.Conf,
-		Log:      app.Log,
-		Db:       app.Db,
-		Sessions: app.Sessions,
+		Conf:      app.Conf,
+		Log:       app.Log,
+		Db:        app.Db,
+		Sessions:  app.Sessions,
+		Notifiers: app.Notifiers,
 	})
 
 	// Outside the session and CSRF group on purpose. A detail page is opened
