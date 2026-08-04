@@ -76,7 +76,7 @@ func prepareMigrationDB(ctx context.Context, dsn string, logger *slog.Logger) (*
 		}
 	}
 
-	db, err := sql.Open("sqlite", dsn)
+	db, err := sql.Open("sqlite", DSN(dsn))
 	if err != nil {
 		return nil, fmt.Errorf("store: open database for migrations: %w", err)
 	}

@@ -23,7 +23,7 @@ func (s *ServeCmd) Run() error {
 		Db:   app.Store,
 	}
 
-	jobClient, err := jobs.NewClient(app.Ctx, app.Config.Db.DbName, app.Config, app.Logger)
+	jobClient, err := jobs.NewClient(app.Ctx, app.DB, app.Config, app.Logger)
 	if err != nil {
 		return fmt.Errorf("create job client: %w", err)
 	}

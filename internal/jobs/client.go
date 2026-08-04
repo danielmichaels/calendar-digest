@@ -20,34 +20,29 @@ const maxWorkers = 10
 
 type Client struct {
 	River *river.Client[*sql.Tx]
-	db    *sql.DB
 	ui    *riverui.Handler
 }
 
 // NewClient builds the job client and applies River's own migrations. Those
 // are separate from the application schema: River owns its queue tables.
+//
+// db is the handle the rest of the process uses and is not closed here — that
+// sharing is the point. River's tables living on the same connection is what
+// lets InsertTx enqueue a job inside the transaction that writes the row the
+// job is about, so the two commit or fail together.
 func NewClient(
 	ctx context.Context,
-	dbPath string,
+	db *sql.DB,
 	cfg *config.Conf,
 	log *slog.Logger,
 ) (*Client, error) {
-	db, err := sql.Open("sqlite", dbPath+"?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)")
-	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-
 	driver := riversqlite.New(db)
 	migrator, err := rivermigrate.New(driver, nil)
 	if err != nil {
-		db.Close()
 		return nil, err
 	}
 	// No advisory lock: SQLite is single-writer and single-node by nature.
 	if _, err := migrator.Migrate(ctx, rivermigrate.DirectionUp, nil); err != nil {
-		db.Close()
 		return nil, err
 	}
 	workers := river.NewWorkers()
@@ -61,11 +56,10 @@ func NewClient(
 		Logger:  log,
 	})
 	if err != nil {
-		db.Close()
 		return nil, err
 	}
 
-	c := &Client{River: rc, db: db}
+	c := &Client{River: rc}
 	// Built only when it is going to be served: the handler keeps polling
 	// caches of its own, so an unmounted one is a background cost for nothing.
 	if cfg.AppConf.RiverUIEnabled {
@@ -75,7 +69,6 @@ func NewClient(
 			Prefix:    cfg.AppConf.RiverUIPath,
 		})
 		if err != nil {
-			db.Close()
 			return nil, fmt.Errorf("jobs: build river ui: %w", err)
 		}
 		c.ui = ui

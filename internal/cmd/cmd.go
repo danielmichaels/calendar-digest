@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
 
@@ -13,9 +14,13 @@ import (
 type Globals struct {
 }
 
+// App is the process-wide wiring. DB is exposed alongside Store because the
+// job client and the transaction helpers need the handle itself, not just the
+// generated queries bound to it.
 type App struct {
 	Config *config.Conf
 	Logger *slog.Logger
+	DB     *sql.DB
 	Store  *store.Queries
 	Ctx    context.Context
 	Cancel context.CancelFunc
@@ -46,9 +51,10 @@ func NewApp() (*App, error) {
 	return a, nil
 }
 
-// startDatabase brings up Postgres if this process owns it, migrates, then
-// opens the pool. Migrations run before the pool so a schema change is in
-// place before anything queries through it.
+// startDatabase migrates, then opens the shared handle. Migrations run first
+// so a schema change is in place before anything queries through it, and on
+// its own short-lived connection so the shared handle never sees a
+// half-applied schema.
 func (a *App) startDatabase() error {
 	dsn := a.Config.Db.DbName
 	if err := store.MigrateUp(a.Ctx, dsn, a.Logger); err != nil {
@@ -59,6 +65,7 @@ func (a *App) startDatabase() error {
 	if err != nil {
 		return fmt.Errorf("open database pool: %w", err)
 	}
+	a.DB = db
 	a.Store = store.New(db)
 	return nil
 }
@@ -71,6 +78,14 @@ func (a *App) Close() {
 
 // release tears down whatever was started, in reverse order, and tolerates
 // partially-built state so NewApp can use it on its error paths.
+//
+// The handle closes after the cancel so anything still draining on the context
+// finishes against a live database rather than a closed one.
 func (a *App) release() {
 	a.Cancel()
+	if a.DB != nil {
+		if err := a.DB.Close(); err != nil {
+			a.Logger.Error("closing database", "error", err)
+		}
+	}
 }
