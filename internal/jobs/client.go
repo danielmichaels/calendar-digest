@@ -29,10 +29,11 @@ type Client struct {
 // NewClient builds the job client and applies River's own migrations. Those
 // are separate from the application schema: River owns its queue tables.
 //
-// db is the handle the rest of the process uses and is not closed here — that
-// sharing is the point. River's tables living on the same connection is what
-// lets InsertTx enqueue a job inside the transaction that writes the row the
-// job is about, so the two commit or fail together.
+// db is the handle the rest of the process uses and is not closed here. A
+// second handle would not break InsertTx — that runs through whatever *sql.Tx
+// it is given — but it would put River's maintenance writes in contention with
+// the application's over the same file, each waiting out the other's write
+// lock for a full busy_timeout.
 func NewClient(
 	ctx context.Context,
 	db *sql.DB,

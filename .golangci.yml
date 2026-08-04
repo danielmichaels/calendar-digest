@@ -1,8 +1,11 @@
+version: "2"
+
 linters:
+  # gosimple is absent deliberately: v2 folded it into staticcheck, and naming
+  # it is a hard config error rather than a warning.
   enable:
     - sloglint
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
