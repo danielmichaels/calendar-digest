@@ -4,6 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	// Every notify time, digest date and DST boundary resolves through
+	// time.LoadLocation. A runtime image without /usr/share/zoneinfo would not
+	// misfire, it would schedule nothing at all, so the binary carries its own
+	// copy rather than trusting the base image to keep shipping one.
+	_ "time/tzdata"
+
 	"github.com/danielmichaels/calendar-digest/internal/cmd"
 	"github.com/danielmichaels/calendar-digest/internal/version"
 
