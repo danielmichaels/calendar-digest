@@ -16,16 +16,6 @@ import (
 
 var errBoom = errors.New("boom")
 
-func newRecipient(name string) store.CreateRecipientParams {
-	return store.CreateRecipientParams{
-		Name:       name,
-		CalendarID: name + "@group.calendar.google.com",
-		NotifyTime: "21:00",
-		Tz:         "Australia/Brisbane",
-		Enabled:    true,
-	}
-}
-
 // countRecipients reads through the pool, so it only ever sees committed rows.
 func countRecipients(t *testing.T, q *store.Queries, name string) int {
 	t.Helper()

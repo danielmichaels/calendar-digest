@@ -74,6 +74,45 @@ func (q *Queries) GetRecipient(ctx context.Context, id int64) (Recipients, error
 	return i, err
 }
 
+const listEnabledRecipients = `-- name: ListEnabledRecipients :many
+SELECT id, name, calendar_id, notify_time, tz, enabled
+FROM recipients
+WHERE enabled
+ORDER BY name
+`
+
+// ListEnabledRecipients feeds the due check. Disabled recipients are still
+// listed in the UI, so the filter belongs here rather than in ListRecipients.
+func (q *Queries) ListEnabledRecipients(ctx context.Context) ([]Recipients, error) {
+	rows, err := q.db.QueryContext(ctx, listEnabledRecipients)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Recipients{}
+	for rows.Next() {
+		var i Recipients
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CalendarID,
+			&i.NotifyTime,
+			&i.Tz,
+			&i.Enabled,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRecipients = `-- name: ListRecipients :many
 SELECT id, name, calendar_id, notify_time, tz, enabled
 FROM recipients
@@ -108,4 +147,61 @@ func (q *Queries) ListRecipients(ctx context.Context) ([]Recipients, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setRecipientEnabled = `-- name: SetRecipientEnabled :exec
+UPDATE recipients
+SET enabled = ?
+WHERE id = ?
+`
+
+type SetRecipientEnabledParams struct {
+	Enabled bool  `json:"enabled"`
+	ID      int64 `json:"id"`
+}
+
+func (q *Queries) SetRecipientEnabled(ctx context.Context, arg SetRecipientEnabledParams) error {
+	_, err := q.db.ExecContext(ctx, setRecipientEnabled, arg.Enabled, arg.ID)
+	return err
+}
+
+const updateRecipient = `-- name: UpdateRecipient :one
+UPDATE recipients
+SET name        = ?,
+    calendar_id = ?,
+    notify_time = ?,
+    tz          = ?,
+    enabled     = ?
+WHERE id = ?
+RETURNING id, name, calendar_id, notify_time, tz, enabled
+`
+
+type UpdateRecipientParams struct {
+	Name       string `json:"name"`
+	CalendarID string `json:"calendar_id"`
+	NotifyTime string `json:"notify_time"`
+	Tz         string `json:"tz"`
+	Enabled    bool   `json:"enabled"`
+	ID         int64  `json:"id"`
+}
+
+func (q *Queries) UpdateRecipient(ctx context.Context, arg UpdateRecipientParams) (Recipients, error) {
+	row := q.db.QueryRowContext(ctx, updateRecipient,
+		arg.Name,
+		arg.CalendarID,
+		arg.NotifyTime,
+		arg.Tz,
+		arg.Enabled,
+		arg.ID,
+	)
+	var i Recipients
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CalendarID,
+		&i.NotifyTime,
+		&i.Tz,
+		&i.Enabled,
+	)
+	return i, err
 }
