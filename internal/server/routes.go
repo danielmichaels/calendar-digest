@@ -43,16 +43,24 @@ func (app *App) Routes() http.Handler {
 	api := humachi.New(router, app.humaConfig())
 	app.registerEndpoints(api)
 
+	pages := ui.New(ui.Deps{
+		Conf:     app.Conf,
+		Log:      app.Log,
+		Db:       app.Db,
+		Sessions: app.Sessions,
+	})
+
+	// Outside the session and CSRF group on purpose. A detail page is opened
+	// from a message by somebody this app has never seen, and the token in the
+	// path is the entire authorisation — a session cookie per view would buy
+	// nothing and write to the session store on every read.
+	router.Mount("/d", pages.DigestRoutes())
+
 	router.Group(func(r chi.Router) {
 		r.Use(app.csrf.Handler)
 		r.Use(app.Sessions.LoadAndSave)
 
-		r.Mount("/app", ui.New(ui.Deps{
-			Conf:     app.Conf,
-			Log:      app.Log,
-			Db:       app.Db,
-			Sessions: app.Sessions,
-		}).Routes())
+		r.Mount("/app", pages.Routes())
 
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/app", http.StatusFound)

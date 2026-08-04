@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/danielmichaels/calendar-digest/internal/calendar"
 	"github.com/danielmichaels/calendar-digest/internal/store"
 )
 
@@ -374,5 +375,41 @@ func TestSnapshotFloorCoversEveryDateDueCanOwe(t *testing.T) {
 		if d.DigestDate < floor {
 			t.Errorf("owed %v, which is before the floor %q the query would use", d, floor)
 		}
+	}
+}
+
+// The rule this carries is the one every surface can get wrong independently:
+// an all-day event's Start is a midnight boundary, not an instant.
+func TestTimeRange(t *testing.T) {
+	loc := zone(t, "Australia/Brisbane")
+	tests := []struct {
+		name  string
+		event calendar.Event
+		want  string
+	}{
+		{
+			name: "a timed event is a range in the recipient's zone",
+			event: calendar.Event{
+				Start: time.Date(2026, 8, 5, 9, 0, 0, 0, loc),
+				End:   time.Date(2026, 8, 5, 9, 15, 0, 0, loc),
+			},
+			want: "09:00–09:15",
+		},
+		{
+			name: "an all-day event never shows a clock",
+			event: calendar.Event{
+				Start:  time.Date(2026, 8, 5, 0, 0, 0, 0, loc),
+				End:    time.Date(2026, 8, 6, 0, 0, 0, 0, loc),
+				AllDay: true,
+			},
+			want: "All day",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := TimeRange(tc.event); got != tc.want {
+				t.Errorf("TimeRange() = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

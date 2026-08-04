@@ -43,17 +43,9 @@ func headline(date string) string {
 	return fmt.Sprintf("%s, %d %s", d.Weekday(), d.Day(), d.Month())
 }
 
-// timeRange is the left-hand column of a timeline row.
-//
-// An all-day event's Start and End are midnight boundaries in the recipient's
-// zone rather than instants, so formatting them with a clock would report
-// "00:00–00:00" — true of the stored value and meaningless to a reader.
-func timeRange(ev calendar.Event) string {
-	if ev.AllDay {
-		return "All day"
-	}
-	return ev.Start.Format("15:04") + "–" + ev.End.Format("15:04")
-}
+// timeRange is the left-hand column of a timeline row. The rule it carries is
+// shared with the detail page, so it lives in digest rather than here.
+func timeRange(ev calendar.Event) string { return digest.TimeRange(ev) }
 
 // eventCount is the phrase the header uses, so that "nothing on" and "1 event"
 // do not have to be special-cased at each call site.
