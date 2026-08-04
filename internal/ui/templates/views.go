@@ -6,16 +6,8 @@
 // exist until `task templ` had run.
 package templates
 
-// ExampleView is one row of the example list. ID is a string because the
-// generated primary key is int32 under pgx and int64 under SQLite.
-type ExampleView struct {
-	ID   string
-	Text string
-}
-
 type HomeView struct {
 	Title string
 	// Flash is a one-shot message surviving exactly one render.
 	Flash string
-	Items []ExampleView
 }

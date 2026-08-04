@@ -40,7 +40,6 @@ func (h *Handlers) Routes() http.Handler {
 	r := chi.NewRouter()
 
 	r.Get("/", h.handleHome)
-	r.Post("/examples", h.handleExampleCreate)
 
 	return r
 }

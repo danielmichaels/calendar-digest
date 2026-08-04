@@ -8,9 +8,29 @@ import (
 	"database/sql"
 )
 
-type Examples struct {
-	ID        int64        `json:"id"`
-	CreatedAt sql.NullTime `json:"created_at"`
-	UpdatedAt sql.NullTime `json:"updated_at"`
-	Text      string       `json:"text"`
+type DigestSnapshots struct {
+	ID          int64          `json:"id"`
+	RecipientID int64          `json:"recipient_id"`
+	DigestDate  string         `json:"digest_date"`
+	Token       string         `json:"token"`
+	Events      string         `json:"events"`
+	CreatedAt   string         `json:"created_at"`
+	NotifiedAt  sql.NullString `json:"notified_at"`
+}
+
+type NotificationTargets struct {
+	ID          int64  `json:"id"`
+	RecipientID int64  `json:"recipient_id"`
+	Kind        string `json:"kind"`
+	Config      string `json:"config"`
+	Enabled     bool   `json:"enabled"`
+}
+
+type Recipients struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	CalendarID string `json:"calendar_id"`
+	NotifyTime string `json:"notify_time"`
+	Tz         string `json:"tz"`
+	Enabled    bool   `json:"enabled"`
 }
