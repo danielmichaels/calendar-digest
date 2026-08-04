@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/danielmichaels/calendar-digest/internal/config"
-"github.com/danielmichaels/calendar-digest/internal/logging"
+	"github.com/danielmichaels/calendar-digest/internal/logging"
 	"github.com/danielmichaels/calendar-digest/internal/store"
 )
 
@@ -16,7 +16,7 @@ type Globals struct {
 type App struct {
 	Config *config.Conf
 	Logger *slog.Logger
-Store  *store.Queries
+	Store  *store.Queries
 	Ctx    context.Context
 	Cancel context.CancelFunc
 }
@@ -50,8 +50,8 @@ func NewApp() (*App, error) {
 // opens the pool. Migrations run before the pool so a schema change is in
 // place before anything queries through it.
 func (a *App) startDatabase() error {
-dsn := a.Config.Db.DbName
-if err := store.MigrateUp(a.Ctx, dsn, a.Logger); err != nil {
+	dsn := a.Config.Db.DbName
+	if err := store.MigrateUp(a.Ctx, dsn, a.Logger); err != nil {
 		return err
 	}
 
@@ -59,7 +59,7 @@ if err := store.MigrateUp(a.Ctx, dsn, a.Logger); err != nil {
 	if err != nil {
 		return fmt.Errorf("open database pool: %w", err)
 	}
-a.Store = store.New(db)
+	a.Store = store.New(db)
 	return nil
 }
 

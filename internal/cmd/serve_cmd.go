@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-"github.com/danielmichaels/calendar-digest/internal/jobs"
-"github.com/danielmichaels/calendar-digest/internal/server"
+	"github.com/danielmichaels/calendar-digest/internal/jobs"
+	"github.com/danielmichaels/calendar-digest/internal/server"
 )
 
 type ServeCmd struct {
@@ -21,14 +21,14 @@ func (s *ServeCmd) Run() error {
 		Conf: app.Config,
 		Log:  app.Logger,
 		Db:   app.Store,
-}
+	}
 
-jobClient, err := jobs.NewClient(app.Ctx, app.Config.Db.DbName, app.Config, app.Logger)
-if err != nil {
+	jobClient, err := jobs.NewClient(app.Ctx, app.Config.Db.DbName, app.Config, app.Logger)
+	if err != nil {
 		return fmt.Errorf("create job client: %w", err)
 	}
 	deps.Jobs = jobClient
-srv := server.New(deps)
+	srv := server.New(deps)
 
 	if err := srv.Start(app.Ctx); err != nil {
 		return fmt.Errorf("start background workers: %w", err)

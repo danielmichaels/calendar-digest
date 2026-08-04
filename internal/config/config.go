@@ -18,7 +18,7 @@ type Conf struct {
 	Db      dbConf
 	Limiter limiter
 	AppConf appConf
-Session sessionConf
+	Session sessionConf
 }
 
 type limiter struct {
@@ -54,10 +54,10 @@ type appConf struct {
 	LogConcise         bool       `env:"LOG_CONCISE,default=false"`
 	LogResponseHeaders bool       `env:"LOG_RESPONSE_HEADERS,default=false"`
 	LogRequestHeaders  bool       `env:"LOG_REQUEST_HEADERS,default=true"`
-// TrustedOrigins are the cross-origin sites allowed to submit to this app,
+	// TrustedOrigins are the cross-origin sites allowed to submit to this app,
 	// as scheme://host (e.g. https://app.example.com).
 	TrustedOrigins []string `env:"TRUSTED_ORIGINS"`
-// RiverUIEnabled mounts the job dashboard inside this binary. It ships off
+	// RiverUIEnabled mounts the job dashboard inside this binary. It ships off
 	// because the dashboard can cancel and retry jobs and nothing in a freshly
 	// generated project authorises anything — see the mount site in
 	// internal/server/routes.go for where the gate goes.
@@ -106,25 +106,25 @@ func Load() (*Conf, error) {
 
 	var problems []string
 
-if c.Server.Port < 1 || c.Server.Port > 65535 {
+	if c.Server.Port < 1 || c.Server.Port > 65535 {
 		problems = append(problems, "SERVER_PORT must be between 1 and 65535")
 	}
-if c.AppConf.RiverUIEnabled {
+	if c.AppConf.RiverUIEnabled {
 		if problem := riverUIPathProblem(c.AppConf.RiverUIPath); problem != "" {
 			problems = append(problems, problem)
 		}
 	}
-if c.IsProduction() {
+	if c.IsProduction() {
 		if c.Server.XApiKey == "changeme" {
 			problems = append(problems, "X_API_KEY must be changed from its default in production")
 		}
-if len(c.AppConf.TrustedOrigins) == 0 {
+		if len(c.AppConf.TrustedOrigins) == 0 {
 			problems = append(problems, "TRUSTED_ORIGINS must list at least one origin in production")
 		}
 		if !c.Session.Secure {
 			problems = append(problems, "SESSION_COOKIE_SECURE must be true in production")
 		}
-}
+	}
 
 	if len(problems) > 0 {
 		return nil, fmt.Errorf("config:\n  - %s", strings.Join(problems, "\n  - "))

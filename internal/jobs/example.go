@@ -1,4 +1,3 @@
-
 package jobs
 
 import (
@@ -22,4 +21,3 @@ func (w *ExampleWorker) Work(ctx context.Context, job *river.Job[ExampleArgs]) e
 	slog.InfoContext(ctx, "example job", "message", job.Args.Message)
 	return nil
 }
-

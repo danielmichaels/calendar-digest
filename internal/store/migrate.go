@@ -5,14 +5,14 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-"os"
+	"os"
 	"path/filepath"
-"time"
+	"time"
 
 	"github.com/danielmichaels/calendar-digest/assets"
 
-_ "modernc.org/sqlite"
-"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3"
+	_ "modernc.org/sqlite"
 )
 
 const (
@@ -56,18 +56,18 @@ func migrate(ctx context.Context, dsn string, logger *slog.Logger, fn func(*sql.
 		goose.SetLogger(goose.NopLogger())
 	}
 
-// No advisory lock: SQLite is single-writer and single-node by nature.
+	// No advisory lock: SQLite is single-writer and single-node by nature.
 	if err := fn(db); err != nil {
 		return fmt.Errorf("store: run migrations: %w", err)
 	}
-return nil
+	return nil
 }
 
 // prepareMigrationDB opens a migration connection and waits for the database
 // to accept queries. The wait matters on boot: an embedded Postgres or a
 // container started alongside this process may not be listening yet.
 func prepareMigrationDB(ctx context.Context, dsn string, logger *slog.Logger) (*sql.DB, error) {
-// SQLite will not create missing parent directories, and the directory is
+	// SQLite will not create missing parent directories, and the directory is
 	// absent both in a fresh checkout and in the container image, where it is
 	// excluded from the build context.
 	if dir := filepath.Dir(dsn); dir != "" && dir != "." {
@@ -76,7 +76,7 @@ func prepareMigrationDB(ctx context.Context, dsn string, logger *slog.Logger) (*
 		}
 	}
 
-db, err := sql.Open("sqlite", dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("store: open database for migrations: %w", err)
 	}

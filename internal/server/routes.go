@@ -1,12 +1,12 @@
 package server
 
 import (
-"io/fs"
-"net/http"
+	"io/fs"
+	"net/http"
 
-"github.com/danielmichaels/calendar-digest/assets"
+	"github.com/danielmichaels/calendar-digest/assets"
 	"github.com/danielmichaels/calendar-digest/internal/ui"
-"github.com/danielmichaels/calendar-digest/internal/version"
+	"github.com/danielmichaels/calendar-digest/internal/version"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
@@ -34,16 +34,16 @@ func (app *App) Routes() http.Handler {
 	router.Use(middleware.Compress(5))
 	router.Use(securityHeaders)
 
-staticFS, err := fs.Sub(assets.EmbeddedFiles, "static")
+	staticFS, err := fs.Sub(assets.EmbeddedFiles, "static")
 	if err != nil {
 		panic(err)
 	}
 	router.Handle("/static/*", http.StripPrefix("/static/", http.FileServerFS(staticFS)))
 
-api := humachi.New(router, app.humaConfig())
+	api := humachi.New(router, app.humaConfig())
 	app.registerEndpoints(api)
 
-router.Group(func(r chi.Router) {
+	router.Group(func(r chi.Router) {
 		r.Use(app.csrf.Handler)
 		r.Use(app.Sessions.LoadAndSave)
 
@@ -58,7 +58,7 @@ router.Group(func(r chi.Router) {
 			http.Redirect(w, r, "/app", http.StatusFound)
 		})
 
-// Mounted at the top level, not under /app: the dashboard builds its
+		// Mounted at the top level, not under /app: the dashboard builds its
 		// asset URLs from the prefix it was constructed with, and chi strips a
 		// subrouter's mount path before the handler sees it.
 		//
@@ -78,8 +78,8 @@ router.Group(func(r chi.Router) {
 				r.Mount(app.Conf.AppConf.RiverUIPath, app.Jobs.UIHandler())
 			})
 		}
-})
-return router
+	})
+	return router
 }
 
 func (app *App) humaConfig() huma.Config {

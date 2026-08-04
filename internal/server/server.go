@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/danielmichaels/calendar-digest/internal/config"
-"github.com/danielmichaels/calendar-digest/internal/jobs"
-"github.com/danielmichaels/calendar-digest/internal/store"
+	"github.com/danielmichaels/calendar-digest/internal/jobs"
+	"github.com/danielmichaels/calendar-digest/internal/store"
 
-"github.com/alexedwards/scs/v2"
-"golang.org/x/sync/errgroup"
+	"github.com/alexedwards/scs/v2"
+	"golang.org/x/sync/errgroup"
 )
 
 // shutdownGrace bounds how long in-flight requests have to finish once a
@@ -28,20 +28,20 @@ type Deps struct {
 	Conf *config.Conf
 	Log  *slog.Logger
 	Db   *store.Queries
-Jobs *jobs.Client
+	Jobs *jobs.Client
 }
 
 type App struct {
 	Deps
-Sessions *scs.SessionManager
+	Sessions *scs.SessionManager
 	csrf     *http.CrossOriginProtection
 }
 
 func New(d Deps) *App {
 	app := &App{Deps: d}
-app.Sessions = newSessionManager(d)
+	app.Sessions = newSessionManager(d)
 	app.csrf = newCrossOriginProtection(d.Conf)
-return app
+	return app
 }
 
 func newSessionManager(d Deps) *scs.SessionManager {
@@ -50,9 +50,9 @@ func newSessionManager(d Deps) *scs.SessionManager {
 	s.Cookie.Secure = d.Conf.Session.Secure
 	s.Cookie.HttpOnly = true
 	s.Cookie.SameSite = http.SameSiteLaxMode
-// Left on the default in-memory store: scs has no CGO-free SQLite store,
+	// Left on the default in-memory store: scs has no CGO-free SQLite store,
 	// so sessions do not survive a restart. Swap it if that matters.
-return s
+	return s
 }
 
 // newCrossOriginProtection builds the stdlib CSRF check. A rejected request is
@@ -71,11 +71,11 @@ func newCrossOriginProtection(cfg *config.Conf) *http.CrossOriginProtection {
 	return p
 }
 func (app *App) Start(ctx context.Context) error {
-return app.Jobs.Start(ctx)
+	return app.Jobs.Start(ctx)
 }
 
 func (app *App) Stop(ctx context.Context) error {
-return app.Jobs.Stop(ctx)
+	return app.Jobs.Stop(ctx)
 }
 
 // Serve runs the HTTP server until a signal arrives or a goroutine fails,

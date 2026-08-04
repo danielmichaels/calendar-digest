@@ -1,12 +1,12 @@
 package server
 
 import (
-	"log/slog"
-	"net/http"
-"strings"
-"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httplog/v3"
+	"log/slog"
+	"net/http"
+	"strings"
 )
 
 // ApiKeyAuth checks the X-API-Key header. The key is read from the App's
@@ -59,9 +59,9 @@ func (app *App) skipRequestLog(r *http.Request, _ int) bool {
 	case "/static/*", "/healthz":
 		return true
 	}
-// The job dashboard polls its own API constantly.
+	// The job dashboard polls its own API constantly.
 	if route != "" && strings.HasPrefix(route, app.Conf.AppConf.RiverUIPath) {
 		return true
 	}
-return false
+	return false
 }

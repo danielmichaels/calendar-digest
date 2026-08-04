@@ -9,9 +9,7 @@ import (
 
 	"github.com/alecthomas/kong"
 
-	
 	_ "modernc.org/sqlite"
-	
 )
 
 const appName = "calendar-digest"

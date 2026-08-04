@@ -2,11 +2,11 @@ package store
 
 import (
 	"context"
-"time"
+	"time"
 
 	"github.com/danielmichaels/calendar-digest/internal/config"
 
-"database/sql"
+	"database/sql"
 
 	_ "modernc.org/sqlite"
 )

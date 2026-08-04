@@ -72,9 +72,9 @@ func TestSlogHandler_HandleAddsTraceID(t *testing.T) {
 // across a service boundary is not silently replaced by a per-request one.
 func TestSlogHandler_HandleFallsBackToRequestID(t *testing.T) {
 	tests := []struct {
-		name  string
-		ctx   func() context.Context
-		want  any
+		name string
+		ctx  func() context.Context
+		want any
 	}{
 		{
 			name: "request id only",

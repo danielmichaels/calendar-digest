@@ -11,7 +11,7 @@ import (
 // break exactly one thing and see only that reported.
 func setMinimalEnv(t *testing.T) {
 	t.Helper()
-t.Setenv("TRUSTED_ORIGINS", "https://trusted.example")
+	t.Setenv("TRUSTED_ORIGINS", "https://trusted.example")
 }
 
 func TestLoadDefaults(t *testing.T) {
