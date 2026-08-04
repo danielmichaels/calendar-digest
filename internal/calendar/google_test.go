@@ -206,3 +206,65 @@ func TestFakeReturnsItsError(t *testing.T) {
 		t.Error("Err was set but the call succeeded")
 	}
 }
+
+// The whole point of ErrAccess is that the job layer can tell "go and fix the
+// Google console" apart from "try again in a minute". Getting a code on the
+// wrong side of this line either alerts on a blip or stays silent on a dead
+// credential.
+func TestEventsForDayClassifiesAccessFailures(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		access bool
+	}{
+		{"401 is a refused credential", http.StatusUnauthorized, true},
+		{"403 is a refused credential", http.StatusForbidden, true},
+		// Google reports a calendar the service account cannot see as Not
+		// Found, so a revoked share arrives as a 404 rather than a 403.
+		{"404 is an unshared or mistyped calendar", http.StatusNotFound, true},
+		{"429 is worth retrying", http.StatusTooManyRequests, false},
+		{"500 is worth retrying", http.StatusInternalServerError, false},
+		{"503 is worth retrying", http.StatusServiceUnavailable, false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(`{"error":{"message":"nope"}}`))
+			})
+
+			_, err := c.EventsForDay(t.Context(), "ada@example.com", "2026-08-05", brisbane(t))
+			if err == nil {
+				t.Fatal("no error for a failing request")
+			}
+			if got := errors.Is(err, ErrAccess); got != tc.access {
+				t.Errorf("errors.Is(err, ErrAccess) = %v, want %v (err: %v)", got, tc.access, err)
+			}
+		})
+	}
+}
+
+func TestVerifyAccessReportsARefusedCalendar(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"error":{"message":"forbidden"}}`))
+	})
+
+	err := c.VerifyAccess(t.Context(), "ada@example.com")
+	if !errors.Is(err, ErrAccess) {
+		t.Errorf("err = %v, want it to wrap ErrAccess", err)
+	}
+}
+
+func TestVerifyAccessAcceptsAReadableCalendar(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		writeEvents(t, w, gcal.Events{})
+	})
+
+	if err := c.VerifyAccess(t.Context(), "ada@example.com"); err != nil {
+		t.Errorf("verify access: %v", err)
+	}
+}

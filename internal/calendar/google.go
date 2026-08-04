@@ -2,12 +2,50 @@ package calendar
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
+	"golang.org/x/oauth2"
 	gcal "google.golang.org/api/calendar/v3"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 )
+
+// ErrAccess means Google refused the credential or the calendar behind it.
+//
+// Separated from every other failure because the two need opposite handling: a
+// timeout or a 5xx is worth retrying, while a revoked key, a lapsed
+// domain-wide delegation or an unshared calendar is not — it stays broken until
+// somebody opens the Google console. Retrying that quietly is how a household
+// stops receiving digests without anyone noticing.
+var ErrAccess = errors.New("calendar: access refused")
+
+// classify marks the failures that need a human rather than another attempt.
+//
+// 404 is included with the two obvious auth codes on purpose: Google reports a
+// calendar the service account cannot see as Not Found, so a revoked share and
+// a mistyped calendar id both arrive this way, and both need the same person to
+// go and fix the same panel.
+func classify(err error) error {
+	var apiErr *googleapi.Error
+	if errors.As(err, &apiErr) {
+		switch apiErr.Code {
+		case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
+			return fmt.Errorf("%w: %s (HTTP %d): %w",
+				ErrAccess, apiErr.Message, apiErr.Code, err)
+		}
+	}
+	// The token exchange failing at all — an expired, deleted or disabled
+	// service account — never reaches an API status code.
+	var tokenErr *oauth2.RetrieveError
+	if errors.As(err, &tokenErr) {
+		return fmt.Errorf("%w: token exchange rejected (%s): %w",
+			ErrAccess, tokenErr.ErrorCode, err)
+	}
+	return err
+}
 
 // pageSize is Google's maximum. A household calendar never fills one page, so
 // asking for the largest allowed makes pagination the rare path rather than
@@ -75,7 +113,21 @@ func (c *GoogleClient) EventsForDay(
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("calendar: list events for %s on %s: %w", calendarID, date, err)
+		return nil, fmt.Errorf("calendar: list events for %s on %s: %w",
+			calendarID, date, classify(err))
 	}
 	return out, nil
+}
+
+// VerifyAccess makes the smallest real request that proves this calendar can
+// still be read, returning an error wrapping ErrAccess when it cannot.
+//
+// It exercises the credential and the sharing grant together, which is the
+// point: those are two separate things to lose and both look identical from
+// here — nothing arrives.
+func (c *GoogleClient) VerifyAccess(ctx context.Context, calendarID string) error {
+	if _, err := c.svc.Events.List(calendarID).MaxResults(1).Do(); err != nil {
+		return fmt.Errorf("calendar: verify access to %s: %w", calendarID, classify(err))
+	}
+	return nil
 }

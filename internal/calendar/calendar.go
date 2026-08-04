@@ -60,7 +60,14 @@ type Client interface {
 	// EventsForDay returns the busy events falling on date, formatted
 	// "YYYY-MM-DD" and read in loc, ordered by start time. A day with nothing
 	// on it returns an empty slice and no error — that is a digest too.
+	//
+	// A refused credential or unshared calendar comes back wrapping ErrAccess,
+	// which callers must not retry.
 	EventsForDay(ctx context.Context, calendarID, date string, loc *time.Location) ([]Event, error)
+
+	// VerifyAccess reports whether calendarID can be read right now, so a
+	// broken grant can be found at boot rather than at the notify time.
+	VerifyAccess(ctx context.Context, calendarID string) error
 }
 
 // DayWindow returns the half-open interval [start, end) that date covers in

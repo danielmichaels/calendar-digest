@@ -21,7 +21,11 @@ require (
 	riverqueue.com/riverui v0.16.0
 )
 
-require google.golang.org/api v0.291.0
+require (
+	github.com/riverqueue/river/rivertype v0.41.1
+	golang.org/x/oauth2 v0.36.0
+	google.golang.org/api v0.291.0
+)
 
 require (
 	cloud.google.com/go/auth v0.22.0 // indirect
@@ -64,7 +68,6 @@ require (
 	github.com/riverqueue/apiframe v0.0.0-20251229202423-2b52ce1c482e // indirect
 	github.com/riverqueue/river/riverdriver v0.41.1 // indirect
 	github.com/riverqueue/river/rivershared v0.41.1 // indirect
-	github.com/riverqueue/river/rivertype v0.41.1 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
@@ -82,7 +85,6 @@ require (
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
-	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/tools v0.47.0 // indirect

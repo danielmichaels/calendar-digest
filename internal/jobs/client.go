@@ -7,6 +7,7 @@ import (
 	"github.com/danielmichaels/calendar-digest/internal/config"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riversqlite"
@@ -39,6 +40,7 @@ func NewClient(
 	db *sql.DB,
 	cfg *config.Conf,
 	log *slog.Logger,
+	deps *Deps,
 ) (*Client, error) {
 	driver := riversqlite.New(db)
 	migrator, err := rivermigrate.New(driver, nil)
@@ -49,10 +51,14 @@ func NewClient(
 	if _, err := migrator.Migrate(ctx, rivermigrate.DirectionUp, nil); err != nil {
 		return nil, err
 	}
-	workers := river.NewWorkers()
-	for _, register := range workerRegistry {
-		register(workers)
+	if deps == nil {
+		deps = &Deps{}
 	}
+	deps.DB = db
+	if deps.Log == nil {
+		deps.Log = log
+	}
+	workers := NewWorkers(deps)
 
 	// River refuses to start a client with an empty bundle, and equally refuses
 	// one with no queues. Configuring the queue only when a worker exists makes
@@ -63,12 +69,42 @@ func NewClient(
 		riverCfg.Queues = map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: maxWorkers},
 		}
+		// The due check runs inside the worker, never here: a
+		// PeriodicJobConstructor must never block, and this one would be
+		// querying the database on every tick.
+		//
+		// RunOnStart because the schedule is in-memory and leader-scoped. A
+		// restart resets it, so without this a deploy at 20:58 would wait a
+		// full interval before first asking what is owed.
+		riverCfg.PeriodicJobs = []*river.PeriodicJob{
+			river.NewPeriodicJob(
+				river.PeriodicInterval(cfg.AppConf.TickInterval),
+				func() (river.JobArgs, *river.InsertOpts) {
+					return ScanDueRecipientsArgs{}, nil
+				},
+				&river.PeriodicJobOpts{RunOnStart: true},
+			),
+			// RunOnStart is the entire point of this one: it turns "the
+			// credential is dead" from something discovered at the notify time
+			// into something discovered at deploy time.
+			river.NewPeriodicJob(
+				river.PeriodicInterval(24*time.Hour),
+				func() (river.JobArgs, *river.InsertOpts) {
+					return VerifyCalendarAccessArgs{}, nil
+				},
+				&river.PeriodicJobOpts{RunOnStart: true},
+			),
+		}
 	}
 
 	rc, err := river.NewClient(driver, riverCfg)
 	if err != nil {
 		return nil, err
 	}
+	// The workers were built before this existed, because the bundle is an
+	// input to NewClient. They hold the pointer, so filling it here reaches
+	// every one of them.
+	deps.Jobs = rc
 
 	c := &Client{River: rc, worksJobs: worksJobs}
 	// Built only when it is going to be served: the handler keeps polling

@@ -8,6 +8,12 @@ import (
 	"database/sql"
 )
 
+type AppState struct {
+	Key       string `json:"key"`
+	Value     string `json:"value"`
+	UpdatedAt string `json:"updated_at"`
+}
+
 type DigestSnapshots struct {
 	ID          int64          `json:"id"`
 	RecipientID int64          `json:"recipient_id"`

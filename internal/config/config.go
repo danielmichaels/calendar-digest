@@ -64,6 +64,22 @@ type appConf struct {
 	RiverUIEnabled bool `env:"RIVER_UI_EMBEDDED,default=false"`
 	// RiverUIPath is checked against the paths Routes already mounts.
 	RiverUIPath string `env:"RIVER_UI_PATH,default=/riverui"`
+	// TickInterval is how often the due check asks what digests are owed. It
+	// bounds how late a digest can be, and how quickly a recovery after an
+	// outage begins — not how often anything is sent.
+	TickInterval time.Duration `env:"TICK_INTERVAL,default=5m"`
+	// GoogleServiceAccountJSON is the credential the calendar client reads
+	// with. Empty leaves the calendar unconfigured: the due check still runs
+	// and every DigestJob fails loudly rather than the process refusing to boot.
+	GoogleServiceAccountJSON string `env:"GOOGLE_SERVICE_ACCOUNT_JSON"`
+	// TelegramBotToken is the bot that both digests and operator alerts go out
+	// through.
+	TelegramBotToken string `env:"TELEGRAM_BOT_TOKEN"`
+	// AlertTelegramChatID receives operator alerts — a refused Google
+	// credential above all. It is deliberately separate from any recipient's
+	// target: the person who has to go and fix the Google console must hear
+	// about it even when no recipient uses Telegram at all.
+	AlertTelegramChatID string `env:"ALERT_TELEGRAM_CHAT_ID"`
 }
 
 // IsProduction reports whether this process is configured as a deployment

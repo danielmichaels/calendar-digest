@@ -58,6 +58,18 @@ func (f *Fake) EventsForDay(
 	return append(out, f.days[fakeKey(calendarID, date)]...), nil
 }
 
+func (f *Fake) VerifyAccess(_ context.Context, calendarID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.calls = append(f.calls, FakeCall{CalendarID: calendarID, Date: verifyCall})
+	return f.Err
+}
+
+// verifyCall marks a recorded call as a VerifyAccess rather than a day fetch,
+// since that one has no date of its own.
+const verifyCall = "verify"
+
 // Calls returns what the fake was asked for, in order.
 func (f *Fake) Calls() []FakeCall {
 	f.mu.Lock()
