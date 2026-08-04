@@ -1,0 +1,155 @@
+version: '3'
+
+dotenv:
+  - .env
+
+vars:
+  APP_NAME: calendar-digest
+  CMD_NAME: app
+  DB_TYPE: sqlite3
+  DEV_DSN: ./database/data.db
+  GOOSE_DSN: '{{.DATABASE_URL | default .DEV_DSN}}'
+
+tasks:
+  default:
+    desc: display all available tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  init:
+    desc: Generate code and tidy modules. Run this once after generating the project.
+    cmds:
+      - task: templ
+      - task: css
+      - task: sqlc
+      - task: tidy
+
+  tidy:
+    desc: runs go mod tidy
+    cmds:
+      - go mod tidy
+
+  dev:
+    desc: Run the app with hot reload. No database needed.
+    cmds:
+      - air -c .air.toml {{.CLI_ARGS}}
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./... {{.CLI_ARGS}}
+
+  sqlc:
+    desc: Generate models using sqlc
+    dir: assets
+    cmds:
+      - sqlc generate
+
+  templ:
+    desc: Generate Go code from .templ files
+    cmds:
+      - go tool templ generate {{.CLI_ARGS}}
+
+  css:
+    desc: Compile Tailwind CSS into the embedded static tree
+    cmds:
+      - tailwindcss -i ./assets/css/input.css -o ./assets/static/css/main.css --minify
+
+  css:watch:
+    desc: Recompile Tailwind CSS on change
+    cmds:
+      - tailwindcss -i ./assets/css/input.css -o ./assets/static/css/main.css --watch
+
+  clean:
+    desc: 'Delete the local database and build output so the next `task dev` migrates a fresh one.'
+    cmds:
+      - rm -f ./database/data.db ./database/data.db-wal ./database/data.db-shm
+      - rm -rf bin tmp/main
+
+  # The app applies migrations itself at boot, so these are dev conveniences:
+  # creating a migration, inspecting status, and stepping back down.
+  db:migration:up:
+    desc: Run migrations (all of them)
+    cmds:
+      - goose -dir ./assets/migrations {{.DB_TYPE}} "{{.GOOSE_DSN}}" up
+
+  db:migration:down:
+    desc: Roll back the most recent migration
+    cmds:
+      - goose -dir ./assets/migrations {{.DB_TYPE}} "{{.GOOSE_DSN}}" down
+
+  db:migration:down:to:
+    desc: Run migrations back to a specific version
+    summary: |
+      Rollback to a specific version of the local migrations. Must provide the version
+      as an argument.
+      Example,
+      task db:migration:down:to -- 0001
+    cmds:
+      - goose -dir ./assets/migrations {{.DB_TYPE}} "{{.GOOSE_DSN}}" down-to {{.CLI_ARGS}}
+
+  db:migration:create:
+    desc: Create a new migration. The migration name is the value after --
+    summary: |
+      Create a new migrations file using the following syntax
+      task db:migration:create -- my-new-migration
+    cmds:
+      - goose -dir ./assets/migrations {{.DB_TYPE}} "{{.GOOSE_DSN}}" create {{.CLI_ARGS}} sql
+      - goose -dir ./assets/migrations {{.DB_TYPE}} "{{.GOOSE_DSN}}" fix
+
+  db:migration:redo:
+    desc: Roll back the latest migration, then reapply it
+    cmds:
+      - goose -dir ./assets/migrations {{.DB_TYPE}} "{{.GOOSE_DSN}}" redo
+
+  db:migration:status:
+    desc: Show which migrations have been applied
+    cmds:
+      - goose -dir ./assets/migrations {{.DB_TYPE}} "{{.GOOSE_DSN}}" status
+
+  audit:
+    desc: Run linters and betteralign
+    cmds:
+      - task: betteralign
+      - task: golines
+      - task: golangci
+
+  betteralign:
+    desc: Run betteralign
+    cmds:
+      - betteralign -apply ./... {{.CLI_ARGS}}
+
+  golangci:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./... -c .golangci.yml {{.CLI_ARGS}}
+
+  golines:
+    desc: run golines
+    cmds:
+      - golines . -w --ignore-generated --no-reformat-tags --ignored-dirs=ci --base-formatter=gofumpt {{.CLI_ARGS}}
+
+  golines-ci:
+    desc: run golines in dry-run mode, failing if anything would change
+    cmds:
+      - |
+        output=$(golines . --ignore-generated --no-reformat-tags --ignored-dirs=ci --base-formatter=gofumpt --dry-run)
+        if [ -n "$output" ]; then
+          echo "$output"
+          exit 1
+        fi
+
+  install_bins:
+    desc: Install the external tools these tasks call
+    cmds:
+      - go install github.com/pressly/goose/v3/cmd/goose@latest
+      - go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+      - go install github.com/air-verse/air@latest
+      - go install github.com/go-task/task/v3/cmd/task@latest
+      - go install github.com/segmentio/golines@latest
+      - go install github.com/dkorunic/betteralign/cmd/betteralign@latest
+      - go install mvdan.cc/gofumpt@latest
+      - go install github.com/danielgtaylor/restish@latest
+      # tailwindcss is a standalone binary, not a Go tool:
+      # https://tailwindcss.com/blog/standalone-cli

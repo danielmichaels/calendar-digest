@@ -1,0 +1,32 @@
+#!/bin/sh
+# Litestream has to be the parent process so it can checkpoint and replicate
+# while the app runs, which is why this wrapper exists at all. Migrations are
+# not run here: the binary applies them itself at boot.
+set -e
+
+DB_PATH="${LITESTREAM_LOCAL_DB_PATH:-database/data.db}"
+# Fixed name: the Dockerfile installs the binary here regardless of cmd_name.
+APP="/usr/bin/app"
+
+# Replication is optional. Without a replica URL there is nothing for
+# Litestream to do, and wrapping the process would only add a component that
+# fails on startup — so run the app directly instead.
+case "${S3_DB_URL:-}" in
+    "" | "s3://")
+        echo "no replica configured (S3_DB_URL); starting without litestream"
+        exec "${APP}" serve
+        ;;
+esac
+
+if [ -f "${DB_PATH}" ]; then
+    echo "database present at ${DB_PATH}, skipping restore"
+else
+    echo "no database at ${DB_PATH}, restoring from replica if one exists"
+    # -if-replica-exists exits 0 when there is no backup yet, which is the
+    # normal first-boot case.
+    litestream restore -if-replica-exists -o "${DB_PATH}" "${DB_PATH}" ||
+        echo "no replica to restore from; starting with an empty database"
+fi
+
+echo "starting ${APP} under litestream"
+exec litestream replicate -exec "${APP} serve"
