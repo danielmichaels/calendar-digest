@@ -92,6 +92,58 @@ func (q *Queries) InsertSnapshotIfAbsent(ctx context.Context, arg InsertSnapshot
 	return result.RowsAffected()
 }
 
+const listLatestSnapshots = `-- name: ListLatestSnapshots :many
+SELECT id, recipient_id, digest_date, token, created_at, notified_at
+FROM digest_snapshots s
+WHERE digest_date = (SELECT MAX(digest_date)
+                     FROM digest_snapshots
+                     WHERE recipient_id = s.recipient_id)
+`
+
+type ListLatestSnapshotsRow struct {
+	ID          int64          `json:"id"`
+	RecipientID int64          `json:"recipient_id"`
+	DigestDate  string         `json:"digest_date"`
+	Token       string         `json:"token"`
+	CreatedAt   string         `json:"created_at"`
+	NotifiedAt  sql.NullString `json:"notified_at"`
+}
+
+// ListLatestSnapshots gives the home page each recipient's most recent captured
+// day. The correlated subquery, rather than a window function, so the
+// UNIQUE(recipient_id, digest_date) index answers it directly.
+// The events column is excluded: it holds a whole day of calendar per row and
+// an overview has no use for it.
+func (q *Queries) ListLatestSnapshots(ctx context.Context) ([]ListLatestSnapshotsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listLatestSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLatestSnapshotsRow{}
+	for rows.Next() {
+		var i ListLatestSnapshotsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RecipientID,
+			&i.DigestDate,
+			&i.Token,
+			&i.CreatedAt,
+			&i.NotifiedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSnapshotKeysSince = `-- name: ListSnapshotKeysSince :many
 SELECT recipient_id, digest_date
 FROM digest_snapshots
@@ -117,6 +169,56 @@ func (q *Queries) ListSnapshotKeysSince(ctx context.Context, digestDate string) 
 	for rows.Next() {
 		var i ListSnapshotKeysSinceRow
 		if err := rows.Scan(&i.RecipientID, &i.DigestDate); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUnnotifiedSnapshotsBefore = `-- name: ListUnnotifiedSnapshotsBefore :many
+SELECT id, recipient_id, digest_date, token, created_at, notified_at
+FROM digest_snapshots
+WHERE notified_at IS NULL
+  AND created_at < ?
+ORDER BY created_at
+`
+
+type ListUnnotifiedSnapshotsBeforeRow struct {
+	ID          int64          `json:"id"`
+	RecipientID int64          `json:"recipient_id"`
+	DigestDate  string         `json:"digest_date"`
+	Token       string         `json:"token"`
+	CreatedAt   string         `json:"created_at"`
+	NotifiedAt  sql.NullString `json:"notified_at"`
+}
+
+// ListUnnotifiedSnapshotsBefore finds digests that were captured and then
+// reached nobody. Every enabled target failing leaves the row exactly like
+// this, and it is otherwise silent: nothing else in the app notices.
+func (q *Queries) ListUnnotifiedSnapshotsBefore(ctx context.Context, createdAt string) ([]ListUnnotifiedSnapshotsBeforeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listUnnotifiedSnapshotsBefore, createdAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUnnotifiedSnapshotsBeforeRow{}
+	for rows.Next() {
+		var i ListUnnotifiedSnapshotsBeforeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RecipientID,
+			&i.DigestDate,
+			&i.Token,
+			&i.CreatedAt,
+			&i.NotifiedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

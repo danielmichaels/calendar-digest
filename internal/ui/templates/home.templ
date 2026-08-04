@@ -1,11 +1,113 @@
 package templates
 
+// Home is the operator's view. Its job is to answer "is this working" before
+// it answers anything else, so a digest that reached nobody leads the page —
+// nothing else in the app notices that state.
 templ Home(v HomeView) {
 	@Layout(v.Title) {
-		<h1>{ v.Title }</h1>
-		if v.Flash != "" {
-			<p class="flash" role="status">{ v.Flash }</p>
-		}
-		<p class="empty">No recipients configured yet.</p>
+		<div class="mx-auto max-w-3xl px-5 py-10 sm:py-14">
+			<header class="flex items-baseline justify-between gap-4">
+				<h1 class="text-2xl font-semibold tracking-tight">calendar digest</h1>
+				<a
+					href="/app/recipients/new"
+					class="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
+				>Add recipient</a>
+			</header>
+			if v.Flash != "" {
+				<p class="mt-6 rounded-md bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100" role="status">
+					{ v.Flash }
+				</p>
+			}
+			for _, u := range v.Undelivered {
+				<div class="mt-6 rounded-md border border-red-300 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950" role="alert">
+					<p class="text-sm font-medium text-red-900 dark:text-red-100">
+						{ u.RecipientName }'s digest for { u.DigestDate } reached nobody.
+					</p>
+					<p class="mt-1 text-sm text-red-800 dark:text-red-200">
+						Captured { u.Age } ago, and every channel has failed since.
+						if u.URL != "" {
+							<a href={ templ.URL(u.URL) } class="underline underline-offset-2">See what it would have said</a>.
+						}
+					</p>
+				</div>
+			}
+			if len(v.Recipients) == 0 {
+				<p class="mt-10 text-neutral-500 dark:text-neutral-400">
+					No recipients configured yet.
+				</p>
+			} else {
+				<ul class="mt-8 divide-y divide-neutral-200 dark:divide-neutral-800">
+					for _, r := range v.Recipients {
+						@recipientRow(r)
+					}
+				</ul>
+			}
+			<footer class="mt-10 border-t border-neutral-200 pt-5 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+				if v.BaseURL == "" {
+					<span class="text-amber-700 dark:text-amber-500">
+						BASE_URL is unset, so digests go out with no link to their page.
+					</span>
+				} else {
+					Links are built from { v.BaseURL }.
+				}
+			</footer>
+		</div>
 	}
+}
+
+templ recipientRow(r RecipientRow) {
+	<li class="py-6">
+		<div class="flex items-baseline justify-between gap-4">
+			<h2 class="text-lg font-medium">
+				{ r.Name }
+				if !r.Enabled {
+					<span class="ml-1.5 align-middle text-xs font-normal text-neutral-500 dark:text-neutral-400">paused</span>
+				}
+			</h2>
+			<a
+				href={ templ.URL("/app/recipients/" + itoa(r.ID)) }
+				class="text-sm text-neutral-500 underline underline-offset-2 dark:text-neutral-400"
+			>Edit</a>
+		</div>
+		<p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{ r.Schedule }</p>
+		if r.ScheduleProblem != "" {
+			<p class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+				This schedule cannot be read, so nothing will ever be sent: { r.ScheduleProblem }
+			</p>
+		} else {
+			<p class="mt-0.5 text-sm text-neutral-500 dark:text-neutral-400">
+				Next run { r.NextRun }
+			</p>
+		}
+		if len(r.Targets) == 0 {
+			<p class="mt-2 text-sm text-amber-700 dark:text-amber-500">
+				No channels, so this recipient receives nothing.
+			</p>
+		} else {
+			<ul class="mt-2.5 flex flex-wrap gap-x-2 gap-y-1.5">
+				for _, t := range r.Targets {
+					<li class="rounded border border-neutral-200 px-2 py-1 text-xs dark:border-neutral-800">
+						<span class="font-medium">{ t.Kind }</span>
+						if t.Address != "" {
+							<span class="text-neutral-500 dark:text-neutral-400">{ t.Address }</span>
+						}
+						if !t.Enabled {
+							<span class="text-neutral-400 dark:text-neutral-500">&mdash; off</span>
+						}
+					</li>
+				}
+			</ul>
+		}
+		if r.LastDigest != "" {
+			<p class="mt-2.5 text-sm text-neutral-500 dark:text-neutral-400">
+				Last digest
+				<a href={ templ.URL(r.LastDigestURL) } class="underline underline-offset-2">{ r.LastDigest }</a>
+				if r.Delivered {
+					&mdash; delivered
+				} else {
+					<span class="text-red-700 dark:text-red-400">&mdash; not yet delivered</span>
+				}
+			</p>
+		}
+	</li>
 }

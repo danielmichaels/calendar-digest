@@ -9,7 +9,55 @@ package templates
 type HomeView struct {
 	Title string
 	// Flash is a one-shot message surviving exactly one render.
-	Flash string
+	Flash      string
+	Recipients []RecipientRow
+	// Undelivered are digests that were captured and then reached nobody. They
+	// lead the page because nothing else in the app notices them: the jobs are
+	// discarded into riverui and the recipient just hears silence.
+	Undelivered []UndeliveredRow
+	// BaseURL is shown because every notification embeds it, so a wrong one is
+	// invisible until somebody taps a link that goes nowhere.
+	BaseURL string
+}
+
+type RecipientRow struct {
+	ID   int64
+	Name string
+	// Schedule is the notify time and zone as configured, e.g. "21:00
+	// Australia/Brisbane".
+	Schedule string
+	Enabled  bool
+	// NextRun is when the next digest is owed, empty when ScheduleProblem is
+	// not.
+	NextRun string
+	// ScheduleProblem is set when the zone or notify time cannot be read. Such
+	// a recipient silently stops receiving anything, which is identical from
+	// the outside to a calendar with nothing on it.
+	ScheduleProblem string
+	Targets         []TargetRow
+	// LastDigest is the most recent captured day, empty if there is none yet.
+	LastDigest    string
+	LastDigestURL string
+	// Delivered says whether that last digest reached anybody at all — not
+	// whether it reached everybody, which notified_at cannot answer.
+	Delivered bool
+}
+
+type TargetRow struct {
+	ID   int64
+	Kind string
+	// Address is the human-readable part of the target's config: a chat id, an
+	// email address, a phone number.
+	Address string
+	Enabled bool
+}
+
+type UndeliveredRow struct {
+	RecipientName string
+	DigestDate    string
+	// Age is how long it has been failing, e.g. "3 hours".
+	Age string
+	URL string
 }
 
 // DigestView is one captured day as the detail page shows it.

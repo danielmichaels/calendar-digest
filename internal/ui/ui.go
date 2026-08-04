@@ -6,6 +6,7 @@ package ui
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/danielmichaels/calendar-digest/internal/config"
 	"github.com/danielmichaels/calendar-digest/internal/store"
@@ -24,6 +25,17 @@ type Deps struct {
 	Log      *slog.Logger
 	Db       *store.Queries
 	Sessions *scs.SessionManager
+	// Now is the clock the overview reads for "next run" and for deciding a
+	// digest has been undelivered long enough to be worth shouting about. Nil
+	// means time.Now.
+	Now func() time.Time
+}
+
+func (d *Deps) now() time.Time {
+	if d.Now != nil {
+		return d.Now()
+	}
+	return time.Now()
 }
 
 type Handlers struct {

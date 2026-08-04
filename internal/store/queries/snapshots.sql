@@ -43,3 +43,25 @@ ORDER BY digest_date, recipient_id;
 DELETE
 FROM digest_snapshots
 WHERE digest_date < ?;
+
+-- ListLatestSnapshots gives the home page each recipient's most recent captured
+-- day. The correlated subquery, rather than a window function, so the
+-- UNIQUE(recipient_id, digest_date) index answers it directly.
+-- The events column is excluded: it holds a whole day of calendar per row and
+-- an overview has no use for it.
+-- name: ListLatestSnapshots :many
+SELECT id, recipient_id, digest_date, token, created_at, notified_at
+FROM digest_snapshots s
+WHERE digest_date = (SELECT MAX(digest_date)
+                     FROM digest_snapshots
+                     WHERE recipient_id = s.recipient_id);
+
+-- ListUnnotifiedSnapshotsBefore finds digests that were captured and then
+-- reached nobody. Every enabled target failing leaves the row exactly like
+-- this, and it is otherwise silent: nothing else in the app notices.
+-- name: ListUnnotifiedSnapshotsBefore :many
+SELECT id, recipient_id, digest_date, token, created_at, notified_at
+FROM digest_snapshots
+WHERE notified_at IS NULL
+  AND created_at < ?
+ORDER BY created_at;

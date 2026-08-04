@@ -37,3 +37,10 @@ WHERE id = ?;
 DELETE
 FROM notification_targets
 WHERE id = ?;
+
+-- ListAllTargets is the home page's fan-out in one query rather than one per
+-- recipient.
+-- name: ListAllTargets :many
+SELECT *
+FROM notification_targets
+ORDER BY recipient_id, id;

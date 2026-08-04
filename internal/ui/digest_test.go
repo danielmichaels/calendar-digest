@@ -15,6 +15,7 @@ import (
 	"github.com/danielmichaels/calendar-digest/internal/store"
 	"github.com/danielmichaels/calendar-digest/internal/testhelpers"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -26,7 +27,22 @@ func newHandlers(t *testing.T) (*Handlers, *store.Queries, *sql.DB) {
 		Conf: &config.Conf{},
 		Log:  slog.New(slog.DiscardHandler),
 		Db:   q,
+		// scs panics when a handler reads a session the middleware never
+		// loaded, so anything mounting Routes has to apply it — see withSession.
+		Sessions: scs.New(),
 	}), q, db
+}
+
+// withSession wraps a handler the way internal/server does. The /app pages read
+// flash messages, and scs reads them out of a context value that only
+// LoadAndSave puts there.
+func withSession(h *Handlers, mount string, handler http.Handler) http.Handler {
+	router := chi.NewRouter()
+	router.Group(func(r chi.Router) {
+		r.Use(h.Sessions.LoadAndSave)
+		r.Mount(mount, handler)
+	})
+	return router
 }
 
 // seedSnapshot captures one day for one recipient and returns its token.

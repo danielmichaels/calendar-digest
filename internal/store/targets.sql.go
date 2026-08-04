@@ -70,6 +70,43 @@ func (q *Queries) GetTarget(ctx context.Context, id int64) (NotificationTargets,
 	return i, err
 }
 
+const listAllTargets = `-- name: ListAllTargets :many
+SELECT id, recipient_id, kind, config, enabled
+FROM notification_targets
+ORDER BY recipient_id, id
+`
+
+// ListAllTargets is the home page's fan-out in one query rather than one per
+// recipient.
+func (q *Queries) ListAllTargets(ctx context.Context) ([]NotificationTargets, error) {
+	rows, err := q.db.QueryContext(ctx, listAllTargets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []NotificationTargets{}
+	for rows.Next() {
+		var i NotificationTargets
+		if err := rows.Scan(
+			&i.ID,
+			&i.RecipientID,
+			&i.Kind,
+			&i.Config,
+			&i.Enabled,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEnabledTargets = `-- name: ListEnabledTargets :many
 SELECT id, recipient_id, kind, config, enabled
 FROM notification_targets

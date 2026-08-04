@@ -116,6 +116,34 @@ func candidates(now time.Time, hh, mm int, loc *time.Location) []string {
 	return dates
 }
 
+// NextRun returns the next instant this recipient's digest is owed at, at or
+// after now, in their own zone.
+//
+// It is for showing a person when to expect the next one, not for scheduling:
+// the due check owns that and is polled. The boundary matches Due's — a tick
+// exactly on the notify time is owed now, so the next run at that instant is
+// tomorrow's, not the one currently firing.
+func NextRun(now time.Time, r store.Recipients) (time.Time, error) {
+	loc, err := time.LoadLocation(r.Tz)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("digest: recipient %d: tz: %w", r.ID, err)
+	}
+	hh, mm, err := parseNotifyTime(r.NotifyTime)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("digest: recipient %d: %w", r.ID, err)
+	}
+
+	local := now.In(loc)
+	day := dateOf(local)
+	next := at(day, hh, mm, loc)
+	if !next.After(local) {
+		// AddDate on the zoneless date, so a DST transition cannot normalise
+		// the step onto the wrong calendar day.
+		next = at(day.AddDate(0, 0, 1), hh, mm, loc)
+	}
+	return next, nil
+}
+
 // SnapshotFloor returns the earliest date Due could still owe at now: the
 // earliest local "today" across the recipients, formatted for digest_date.
 //

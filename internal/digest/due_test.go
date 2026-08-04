@@ -413,3 +413,77 @@ func TestTimeRange(t *testing.T) {
 		})
 	}
 }
+
+func TestNextRun(t *testing.T) {
+	bne := zone(t, "Australia/Brisbane")
+	recipient := store.Recipients{Tz: "Australia/Brisbane", NotifyTime: "21:00", Enabled: true}
+
+	tests := []struct {
+		name string
+		now  time.Time
+		want time.Time
+	}{
+		{
+			name: "before today's notify time, it is today",
+			now:  time.Date(2026, 8, 4, 9, 0, 0, 0, bne),
+			want: time.Date(2026, 8, 4, 21, 0, 0, 0, bne),
+		},
+		{
+			// Due treats a tick exactly on the notify time as owed now, so the
+			// next run after that instant has to be tomorrow's — otherwise the
+			// page reports a run that has already happened as still to come.
+			name: "exactly at the notify time, it is tomorrow",
+			now:  time.Date(2026, 8, 4, 21, 0, 0, 0, bne),
+			want: time.Date(2026, 8, 5, 21, 0, 0, 0, bne),
+		},
+		{
+			name: "after today's notify time, it is tomorrow",
+			now:  time.Date(2026, 8, 4, 22, 30, 0, 0, bne),
+			want: time.Date(2026, 8, 5, 21, 0, 0, 0, bne),
+		},
+		{
+			name: "read from another zone, it is still the recipient's clock",
+			now:  time.Date(2026, 8, 4, 3, 0, 0, 0, time.UTC), // 13:00 in Brisbane
+			want: time.Date(2026, 8, 4, 21, 0, 0, 0, bne),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := NextRun(tc.now, recipient)
+			if err != nil {
+				t.Fatalf("next run: %v", err)
+			}
+			if !got.Equal(tc.want) {
+				t.Errorf("NextRun() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// Crossing a DST boundary must advance the calendar day, not add 24 hours, or
+// the reported next run is an hour out for the one day that matters.
+func TestNextRunCrossesADSTBoundaryByCalendarDay(t *testing.T) {
+	akl := zone(t, "Pacific/Auckland")
+	recipient := store.Recipients{Tz: "Pacific/Auckland", NotifyTime: "21:00", Enabled: true}
+
+	// 26 September 2026 at 22:00; clocks go forward at 02:00 on the 27th.
+	got, err := NextRun(time.Date(2026, 9, 26, 22, 0, 0, 0, akl), recipient)
+	if err != nil {
+		t.Fatalf("next run: %v", err)
+	}
+	want := time.Date(2026, 9, 27, 21, 0, 0, 0, akl)
+	if !got.Equal(want) {
+		t.Errorf("NextRun() = %v, want %v", got, want)
+	}
+}
+
+func TestNextRunReportsAnUnusableRecipient(t *testing.T) {
+	for _, r := range []store.Recipients{
+		{Tz: "Mars/Olympus", NotifyTime: "21:00"},
+		{Tz: "Australia/Brisbane", NotifyTime: "9pm"},
+	} {
+		if _, err := NextRun(time.Now(), r); err == nil {
+			t.Errorf("NextRun(%+v) returned no error", r)
+		}
+	}
+}
