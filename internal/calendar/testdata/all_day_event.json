@@ -1,0 +1,15 @@
+{
+  "kind": "calendar#events",
+  "summary": "ada@example.com",
+  "timeZone": "Australia/Brisbane",
+  "items": [
+    {
+      "kind": "calendar#event",
+      "id": "evt_holiday_20260805",
+      "status": "confirmed",
+      "summary": "Public holiday",
+      "start": { "date": "2026-08-05" },
+      "end": { "date": "2026-08-06" }
+    }
+  ]
+}

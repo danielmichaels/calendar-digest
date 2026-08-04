@@ -1,0 +1,35 @@
+{
+  "kind": "calendar#events",
+  "summary": "ada@example.com",
+  "timeZone": "Australia/Brisbane",
+  "items": [
+    {
+      "kind": "calendar#event",
+      "id": "evt_standup_20260805",
+      "status": "confirmed",
+      "htmlLink": "https://www.google.com/calendar/event?eid=ZXZ0X3N0YW5kdXA",
+      "summary": "Standup",
+      "description": "Daily sync. Bring the release notes.",
+      "location": "Zoom",
+      "hangoutLink": "https://meet.google.com/abc-defg-hij",
+      "recurringEventId": "evt_standup",
+      "start": { "dateTime": "2026-08-05T09:30:00+10:00", "timeZone": "Australia/Brisbane" },
+      "end": { "dateTime": "2026-08-05T10:00:00+10:00", "timeZone": "Australia/Brisbane" },
+      "organizer": { "email": "ada@example.com", "displayName": "Ada" },
+      "attendees": [
+        {
+          "email": "ada@example.com",
+          "displayName": "Ada",
+          "responseStatus": "accepted",
+          "self": true
+        },
+        {
+          "email": "grace@example.com",
+          "displayName": "Grace",
+          "responseStatus": "needsAction",
+          "optional": true
+        }
+      ]
+    }
+  ]
+}
