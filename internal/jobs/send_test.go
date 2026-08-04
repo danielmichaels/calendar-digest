@@ -209,3 +209,20 @@ func TestSendFailsWhenTheTargetKindHasNoNotifier(t *testing.T) {
 		t.Error("notified_at was set for a kind with no notifier")
 	}
 }
+
+// The map key and Kind() are the same fact. Building the map from Kind()
+// removes the chance of them disagreeing, which would deliver one channel's
+// message down another with nothing failing.
+func TestRegisterNotifiersKeysByKind(t *testing.T) {
+	telegram := &fakeNotifier{kind: "telegram"}
+	email := &fakeNotifier{kind: "email"}
+
+	got := jobs.RegisterNotifiers(telegram, email)
+
+	if len(got) != 2 {
+		t.Fatalf("registered %d notifiers, want 2", len(got))
+	}
+	if got["telegram"] != telegram || got["email"] != email {
+		t.Errorf("notifiers filed under the wrong kinds: %v", got)
+	}
+}

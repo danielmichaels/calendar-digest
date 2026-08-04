@@ -4,12 +4,62 @@ import (
 	"fmt"
 
 	"github.com/danielmichaels/calendar-digest/internal/calendar"
+	"github.com/danielmichaels/calendar-digest/internal/deliver"
 	"github.com/danielmichaels/calendar-digest/internal/jobs"
 	"github.com/danielmichaels/calendar-digest/internal/notify"
 	"github.com/danielmichaels/calendar-digest/internal/server"
 )
 
 type ServeCmd struct {
+}
+
+// buildNotifiers wires one delivery implementation per configured channel.
+//
+// A channel whose configuration is missing is left out rather than stubbed, so
+// a target of that kind fails its send with jobs.ErrNoNotifier and says so —
+// where a notifier that quietly did nothing would set notified_at.
+//
+// SMS is the exception and is always registered: it refuses on purpose, and
+// logs the payload the webhook will eventually have to accept.
+func buildNotifiers(app *App) map[string]jobs.Notifier {
+	cfg := app.Config
+	base := cfg.AppConf.BaseURL
+	if base == "" {
+		app.Logger.Warn("BASE_URL is unset: digests will go out with no link to their detail page")
+	}
+
+	notifiers := []jobs.Notifier{
+		&deliver.SMSNotifier{Renderer: deliver.SMSRenderer{BaseURL: base}, Log: app.Logger},
+	}
+
+	if cfg.AppConf.TelegramBotToken == "" {
+		app.Logger.Warn("TELEGRAM_BOT_TOKEN is unset: telegram targets cannot be delivered")
+	} else {
+		notifiers = append(notifiers, &deliver.TelegramNotifier{
+			Bot:      &notify.Telegram{Token: cfg.AppConf.TelegramBotToken},
+			Renderer: deliver.TelegramRenderer{BaseURL: base},
+		})
+	}
+
+	switch {
+	case cfg.Email.Host == "":
+		app.Logger.Warn("SMTP_HOST is unset: email targets cannot be delivered")
+	case cfg.Email.From == "":
+		app.Logger.Warn("EMAIL_FROM is unset: email targets cannot be delivered")
+	default:
+		notifiers = append(notifiers, &deliver.EmailNotifier{
+			Sender: &deliver.SMTPSender{
+				Host:     cfg.Email.Host,
+				Port:     cfg.Email.Port,
+				Username: cfg.Email.Username,
+				Password: cfg.Email.Password,
+				From:     cfg.Email.From,
+			},
+			Renderer: deliver.EmailRenderer{BaseURL: base},
+		})
+	}
+
+	return jobs.RegisterNotifiers(notifiers...)
 }
 
 func (s *ServeCmd) Run() error {
@@ -25,7 +75,7 @@ func (s *ServeCmd) Run() error {
 		Db:   app.Store,
 	}
 
-	jobDeps := &jobs.Deps{Notifiers: map[string]jobs.Notifier{}}
+	jobDeps := &jobs.Deps{Notifiers: buildNotifiers(app)}
 	if credential := app.Config.AppConf.GoogleServiceAccountJSON; credential != "" {
 		cal, err := calendar.NewGoogleClient(app.Ctx, credential)
 		if err != nil {

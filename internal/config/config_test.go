@@ -72,6 +72,56 @@ func TestRiverUIPathUncheckedWhenDisabled(t *testing.T) {
 	}
 }
 
+// Unset is a warning at boot, not a startup failure: a digest with no link is
+// still a digest, where a process that refuses to start delivers nothing.
+func TestBaseURLMayBeUnset(t *testing.T) {
+	setMinimalEnv(t)
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if cfg.AppConf.BaseURL != "" {
+		t.Errorf("BaseURL = %q, want empty when BASE_URL is unset", cfg.AppConf.BaseURL)
+	}
+}
+
+// Unset and wrong are different answers. Nothing can be built from a value
+// that is not a URL, and every notification would carry the result.
+func TestBaseURLRejectsWhatIsNotAnAbsoluteURL(t *testing.T) {
+	for _, value := range []string{
+		"calendar.int.lookout.wiki", // the form it is written in everywhere, and not a URL
+		"/d",
+		"://nope",
+		"ftp://calendar.int.lookout.wiki",
+		"https://",
+	} {
+		t.Run(value, func(t *testing.T) {
+			setMinimalEnv(t)
+			t.Setenv("BASE_URL", value)
+
+			if _, err := config.Load(); err == nil {
+				t.Errorf("BASE_URL=%q accepted, want rejected", value)
+			}
+		})
+	}
+}
+
+// Renderers concatenate rather than resolve, so the trailing slash is removed
+// once here instead of being guarded at every call site.
+func TestBaseURLLosesItsTrailingSlash(t *testing.T) {
+	setMinimalEnv(t)
+	t.Setenv("BASE_URL", "https://calendar.int.lookout.wiki/")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if got := cfg.AppConf.BaseURL; got != "https://calendar.int.lookout.wiki" {
+		t.Errorf("BaseURL = %q, want the trailing slash gone", got)
+	}
+}
+
 func TestRiverUIDefaultsAreUsable(t *testing.T) {
 	setMinimalEnv(t)
 	t.Setenv("RIVER_UI_EMBEDDED", "true")

@@ -45,6 +45,19 @@ type Notifier interface {
 	Send(ctx context.Context, target json.RawMessage, d digest.Digest) (body string, err error)
 }
 
+// RegisterNotifiers keys notifiers by the kind each one reports.
+//
+// The map key and Kind() are the same fact, and writing it twice is a way for
+// them to disagree — a telegram notifier filed under "email" would deliver the
+// wrong channel's message with nothing failing.
+func RegisterNotifiers(notifiers ...Notifier) map[string]Notifier {
+	registered := make(map[string]Notifier, len(notifiers))
+	for _, n := range notifiers {
+		registered[n.Kind()] = n
+	}
+	return registered
+}
+
 // Deps is everything the workers need.
 //
 // Taken by pointer throughout: Jobs cannot be filled until river.NewClient has

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ type Conf struct {
 	Limiter limiter
 	AppConf appConf
 	Session sessionConf
+	Email   emailConf
 }
 
 type limiter struct {
@@ -80,6 +82,20 @@ type appConf struct {
 	// target: the person who has to go and fix the Google console must hear
 	// about it even when no recipient uses Telegram at all.
 	AlertTelegramChatID string `env:"ALERT_TELEGRAM_CHAT_ID"`
+	// BaseURL is the scheme-and-host every /d/{token} link is built from, with
+	// no trailing slash. Empty omits the link rather than sending a broken one.
+	BaseURL string `env:"BASE_URL"`
+}
+
+// emailConf is the SMTP relay digests go out through. Empty Host disables the
+// email channel: a target of that kind then fails its send loudly rather than
+// being dropped.
+type emailConf struct {
+	From     string `env:"EMAIL_FROM"`
+	Host     string `env:"SMTP_HOST"`
+	Port     int    `env:"SMTP_PORT,default=587"`
+	Username string `env:"SMTP_USERNAME"`
+	Password string `env:"SMTP_PASSWORD"`
 }
 
 // IsProduction reports whether this process is configured as a deployment
@@ -109,6 +125,30 @@ func riverUIPathProblem(path string) string {
 	return ""
 }
 
+// baseURLProblem returns the empty string when the value is usable as a link
+// root. Empty is usable: it means no link at all, which is checked at boot and
+// warned about rather than refused.
+//
+// The strictness is because BASE_URL is only ever read to be concatenated, and
+// the natural way to write it down — "calendar.int.lookout.wiki" — parses
+// cleanly as a relative path and produces a link nothing can follow.
+func baseURLProblem(value string) string {
+	if value == "" {
+		return ""
+	}
+	u, err := url.Parse(value)
+	if err != nil {
+		return fmt.Sprintf("BASE_URL is not a URL: %v", err)
+	}
+	switch {
+	case u.Scheme != "http" && u.Scheme != "https":
+		return "BASE_URL must start with http:// or https://"
+	case u.Host == "":
+		return "BASE_URL must include a host"
+	}
+	return ""
+}
+
 // Load reads configuration from the environment.
 //
 // Every problem is reported at once rather than one per restart: a
@@ -129,6 +169,11 @@ func Load() (*Conf, error) {
 		if problem := riverUIPathProblem(c.AppConf.RiverUIPath); problem != "" {
 			problems = append(problems, problem)
 		}
+	}
+	// Trimmed before validation so a trailing slash is not a problem to report.
+	c.AppConf.BaseURL = strings.TrimSuffix(c.AppConf.BaseURL, "/")
+	if problem := baseURLProblem(c.AppConf.BaseURL); problem != "" {
+		problems = append(problems, problem)
 	}
 	if c.IsProduction() {
 		if c.Server.XApiKey == "changeme" {

@@ -23,6 +23,7 @@ require (
 
 require (
 	github.com/riverqueue/river/rivertype v0.41.1
+	github.com/wneessen/go-mail v0.8.1
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/api v0.291.0
 )

@@ -9,14 +9,36 @@ import (
 // keep reports whether a Google event belongs in a digest of what the day
 // looks like.
 //
-// Two rules, both about the absent value. Google omits transparency when the
-// event is opaque, so absence means busy and only the explicit "transparent"
-// is free — reading it the other way round drops almost every event. Status is
-// likewise omitted on a plain event, so only an explicit "cancelled" is
-// dropped. Tentative events stay: the time is still blocked, and Status
-// carries through so a renderer can say so.
+// Three rules. Two are about the absent value: Google omits transparency when
+// the event is opaque, so absence means busy and only the explicit
+// "transparent" is free — reading it the other way round drops almost every
+// event. Status is likewise omitted on a plain event, so only an explicit
+// "cancelled" is dropped. Tentative events stay: the time is still blocked, and
+// Status carries through so a renderer can say so.
+//
+// The third is the recipient's own RSVP — see declinedBySelf.
 func keep(ev *gcal.Event) bool {
-	return ev.Status != "cancelled" && ev.Transparency != "transparent"
+	return ev.Status != "cancelled" &&
+		ev.Transparency != "transparent" &&
+		!declinedBySelf(ev)
+}
+
+// declinedBySelf reports whether the owner of the calendar being read said no.
+//
+// Self marks the attendee entry belonging to this calendar, which is the only
+// response that speaks for the recipient — reading any declined attendee would
+// empty the digest the moment one colleague dropped out of a meeting.
+//
+// Dropping here rather than in a renderer means a declined event never reaches
+// digest_snapshots.events, so it is absent from the detail page too and cannot
+// be recovered from an existing snapshot.
+func declinedBySelf(ev *gcal.Event) bool {
+	for _, a := range ev.Attendees {
+		if a.Self && a.ResponseStatus == "declined" {
+			return true
+		}
+	}
+	return false
 }
 
 // convertAll filters and converts one page of the Events.list response,

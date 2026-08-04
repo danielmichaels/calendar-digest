@@ -84,6 +84,46 @@ func TestKeep(t *testing.T) {
 			event: &gcal.Event{},
 			want:  true,
 		},
+		{
+			// Self is the attendee entry for the calendar being read, so this is
+			// the recipient's own RSVP. They said no; it is not on their day.
+			name: "an event the recipient declined is dropped",
+			event: &gcal.Event{Status: "confirmed", Attendees: []*gcal.EventAttendee{
+				{Email: "dan@example.com", Self: true, ResponseStatus: "declined"},
+			}},
+			want: false,
+		},
+		{
+			// Only the Self entry speaks for this calendar. Reading any declined
+			// response would empty a digest the moment one colleague dropped out.
+			name: "someone else declining leaves the event in place",
+			event: &gcal.Event{Status: "confirmed", Attendees: []*gcal.EventAttendee{
+				{Email: "dan@example.com", Self: true, ResponseStatus: "accepted"},
+				{Email: "other@example.com", ResponseStatus: "declined"},
+			}},
+			want: true,
+		},
+		{
+			name: "an unanswered invitation is kept",
+			event: &gcal.Event{Status: "confirmed", Attendees: []*gcal.EventAttendee{
+				{Email: "dan@example.com", Self: true, ResponseStatus: "needsAction"},
+			}},
+			want: true,
+		},
+		{
+			name: "a tentative RSVP is kept",
+			event: &gcal.Event{Status: "confirmed", Attendees: []*gcal.EventAttendee{
+				{Email: "dan@example.com", Self: true, ResponseStatus: "tentative"},
+			}},
+			want: true,
+		},
+		{
+			// A personal block has no attendee list at all, so there is no RSVP
+			// to read and nothing to drop.
+			name:  "an event with no attendees is kept",
+			event: &gcal.Event{Status: "confirmed"},
+			want:  true,
+		},
 	}
 
 	for _, tc := range tests {
