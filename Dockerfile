@@ -1,10 +1,6 @@
-# Copied verbatim by cookiecutter (see _copy_without_render): cookiecutter
-# decides whether to render a file using a content-based binary heuristic that
-# false-positives on Dockerfiles, silently shipping an unrendered template. So
-# nothing here is templated — the binary is always installed as /usr/bin/app,
-# and the single main package under ./cmd is found by wildcard.
 FROM litestream/litestream:0.5.9 AS litestream
-FROM golang:1.26-alpine AS builder
+FROM ghcr.io/danielmichaels/ci-tailwind:2026-08-05 AS tailwind
+FROM golang:1.26 AS builder
 
 WORKDIR /build
 
@@ -15,13 +11,13 @@ RUN go mod download && go mod verify
 
 COPY . .
 
+# Copied from ci-tailwind rather than curl'd here: its glibc build needs a
+# Debian builder, not Alpine — see danielmichaels/ci-images README.
+COPY --from=tailwind /usr/local/bin/tailwindcss /usr/local/bin/tailwindcss
+
 # Both generators are guarded rather than templated: the files they consume
 # only exist for some generated configurations.
 RUN if [ -f ./assets/css/input.css ]; then \
-      apk add --no-cache curl && \
-      curl -fsSL -o /usr/local/bin/tailwindcss \
-        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.11/tailwindcss-linux-x64-musl" && \
-      chmod 755 /usr/local/bin/tailwindcss && \
       tailwindcss -i ./assets/css/input.css -o ./assets/static/css/main.css --minify; \
     fi
 
