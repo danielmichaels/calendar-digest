@@ -25,7 +25,10 @@ import (
 func (app *App) Routes() http.Handler {
 	router := chi.NewMux()
 	router.Use(middleware.RequestID)
-	router.Use(middleware.RealIP)
+	// RealIP is deprecated (GHSA-3fxj-6jh8-hvhx): it trusts X-Forwarded-For
+	// unconditionally, letting a client spoof its own IP. Dokploy's proxy is
+	// the only hop in front of this container, so trust exactly one.
+	router.Use(middleware.ClientIPFromXFFTrustedProxies(1))
 	// Recoverer sits outside the access log purely as a backstop for httplog
 	// itself: httplog recovers handler panics first and logs them with the
 	// request and a stack trace, which Recoverer alone cannot do.

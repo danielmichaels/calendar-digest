@@ -56,7 +56,7 @@ func (t *Telegram) SendMessage(ctx context.Context, chatID, text string) error {
 	if err != nil {
 		return fmt.Errorf("notify: telegram: send: %w", redactToken(err, t.Token))
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Telegram reports application-level failure in the body, and not always
 	// with a non-2xx status, so the status alone is not enough to trust.

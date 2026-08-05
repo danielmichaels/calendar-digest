@@ -38,7 +38,7 @@ func argsOfKind[T river.JobArgs](t *testing.T, db *sql.DB) []T {
 	if err != nil {
 		t.Fatalf("query %s jobs: %v", zero.Kind(), err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []T
 	for rows.Next() {

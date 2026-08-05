@@ -46,7 +46,7 @@ func migrate(ctx context.Context, dsn string, logger *slog.Logger, fn func(*sql.
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	goose.SetBaseFS(assets.EmbeddedFiles)
 	if err := goose.SetDialect("sqlite3"); err != nil {
@@ -87,7 +87,7 @@ func prepareMigrationDB(ctx context.Context, dsn string, logger *slog.Logger) (*
 			return db, nil
 		}
 		if ctx.Err() != nil {
-			db.Close()
+			_ = db.Close()
 			return nil, fmt.Errorf("store: waiting for database: %w", ctx.Err())
 		}
 		if logger != nil {
@@ -101,6 +101,6 @@ func prepareMigrationDB(ctx context.Context, dsn string, logger *slog.Logger) (*
 		time.Sleep(pingInterval)
 	}
 
-	db.Close()
+	_ = db.Close()
 	return nil, fmt.Errorf("store: database unreachable after %d attempts: %w", pingAttempts, lastErr)
 }

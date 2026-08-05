@@ -27,7 +27,7 @@ func openWith(t *testing.T, dsn string) *sql.DB {
 	if err != nil {
 		t.Fatalf("open %s: %v", dsn, err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
 
