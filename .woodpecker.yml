@@ -21,8 +21,8 @@ steps:
       - go_build:/woodpecker/go/build
     commands:
       - go mod download
-- go tool templ generate
-- go build ./...
+      - go tool templ generate
+      - go build ./...
       - go vet ./...
     when:
       - event: [push, pull_request, manual]
@@ -36,14 +36,14 @@ steps:
       - go_mod:/woodpecker/go/mod
       - go_build:/woodpecker/go/build
     commands:
-- go tool templ generate
-- golangci-lint run ./... -c .golangci.yml
+      - go tool templ generate
+      - golangci-lint run ./... -c .golangci.yml
     depends_on: [build]
     when:
       - event: [push, pull_request, manual]
 
   test:
-image: golang:1.26
+    image: golang:1.26
     environment:
       GOMODCACHE: /woodpecker/go/mod
       GOCACHE: /woodpecker/go/build
@@ -52,9 +52,9 @@ image: golang:1.26
       - go_build:/woodpecker/go/build
     commands:
       - go mod download
-- go tool templ generate
-- go test -race ./...
-depends_on: [build]
+      - go tool templ generate
+      - go test -race ./...
+    depends_on: [build]
     when:
       - event: [push, pull_request, manual]
 
