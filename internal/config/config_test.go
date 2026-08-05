@@ -24,6 +24,22 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.IsProduction() {
 		t.Error("IsProduction() = true, want false: APP_ENV defaults to development")
 	}
+	if got := cfg.AppConf.SnapshotRetentionDays; got != 90 {
+		t.Errorf("SnapshotRetentionDays = %d, want default 90", got)
+	}
+}
+
+func TestSnapshotRetentionDaysMustBePositive(t *testing.T) {
+	for _, value := range []string{"0", "-1"} {
+		t.Run(value, func(t *testing.T) {
+			setMinimalEnv(t)
+			t.Setenv("SNAPSHOT_RETENTION_DAYS", value)
+
+			if _, err := config.Load(); err == nil {
+				t.Errorf("SNAPSHOT_RETENTION_DAYS=%q accepted, want rejected", value)
+			}
+		})
+	}
 }
 
 // One pass should be enough to fix a misconfigured deployment, rather than one

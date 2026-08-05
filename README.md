@@ -71,6 +71,7 @@ defaults into hard startup errors.
 | `/healthz`, `/version` | Monitoring, also in the OpenAPI spec |
 | `/docs`, `/openapi.json` | API reference |
 | `/app` | The rendered UI |
+| `/d/{token}` | Digest detail page — unguessable token, no auth, linked from each digest |
 | `/static/*` | Embedded assets |
 | `{{ RIVER_UI_PATH }}` | Job dashboard — off unless `RIVER_UI_EMBEDDED=true`, and unauthenticated until you gate it |
 
@@ -78,6 +79,12 @@ Pages are [templ](https://templ.guide) templates updated in place by
 [Datastar](https://data-star.dev). Cross-origin writes are rejected by
 `http.CrossOriginProtection`; list any legitimate cross-origin callers in
 `TRUSTED_ORIGINS`.
+
+## Deployment
+
+See [docs/deployment.md](./docs/deployment.md) for the full runbook: GCP project
+setup, calendar sharing with the service account, Dokploy deployment, and the
+SMS webhook contract for v2.
 
 ## Container
 

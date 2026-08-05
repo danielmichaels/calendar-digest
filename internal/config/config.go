@@ -85,6 +85,9 @@ type appConf struct {
 	// BaseURL is the scheme-and-host every /d/{token} link is built from, with
 	// no trailing slash. Empty omits the link rather than sending a broken one.
 	BaseURL string `env:"BASE_URL"`
+	// SnapshotRetentionDays controls how long captured calendar details remain
+	// available through their private detail-page links.
+	SnapshotRetentionDays int `env:"SNAPSHOT_RETENTION_DAYS,default=90"`
 }
 
 // emailConf is the SMTP relay digests go out through. Empty Host disables the
@@ -164,6 +167,9 @@ func Load() (*Conf, error) {
 
 	if c.Server.Port < 1 || c.Server.Port > 65535 {
 		problems = append(problems, "SERVER_PORT must be between 1 and 65535")
+	}
+	if c.AppConf.SnapshotRetentionDays < 1 {
+		problems = append(problems, "SNAPSHOT_RETENTION_DAYS must be greater than zero")
 	}
 	if c.AppConf.RiverUIEnabled {
 		if problem := riverUIPathProblem(c.AppConf.RiverUIPath); problem != "" {

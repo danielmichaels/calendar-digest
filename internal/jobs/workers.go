@@ -73,8 +73,11 @@ type Deps struct {
 	// in the log, which is a worse place to find out but not a silent one.
 	Alerter Alerter
 	Log     *slog.Logger
-	// Now is the clock the due check reads. Nil means time.Now.
+	// Now is the clock the due check and retention worker read. Nil means
+	// time.Now.
 	Now func() time.Time
+	// SnapshotRetentionDays is how long detail-page snapshots are retained.
+	SnapshotRetentionDays int
 	// Jobs enqueues follow-on work; NewClient sets it to the client it built.
 	Jobs Enqueuer
 }
@@ -106,6 +109,7 @@ var workerRegistry = []func(*river.Workers, *Deps){
 	func(w *river.Workers, d *Deps) { river.AddWorker(w, &SendWorker{Deps: d}) },
 	func(w *river.Workers, d *Deps) { river.AddWorker(w, &AlertWorker{Deps: d}) },
 	func(w *river.Workers, d *Deps) { river.AddWorker(w, &VerifyCalendarAccessWorker{Deps: d}) },
+	func(w *river.Workers, d *Deps) { river.AddWorker(w, &PurgeSnapshotsWorker{Deps: d}) },
 }
 
 // NewWorkers builds the bundle NewClient registers.
