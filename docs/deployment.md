@@ -64,7 +64,9 @@ Never put credentials in the database or in plaintext files. The database replic
 | `TELEGRAM_BOT_TOKEN` | Bot for digests and operator alerts — set as environment variable |
 | `ALERT_TELEGRAM_CHAT_ID` | Chat ID that receives access failure alerts — set as environment variable |
 | `S3_*` | Litestream replication to R2 — set as environment variables |
-| `SMTP_*` | Email delivery — set as environment variables |
+| `EMAIL_FROM` | Onboarded sender address — set as an environment variable |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account for Email Sending — set as an environment variable |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare Email Sending token — set as a secret |
 
 On Dokploy, store these in **Settings > Environment Variables** as secrets.
 
@@ -76,6 +78,7 @@ On Dokploy, store these in **Settings > Environment Variables** as secrets.
 
 - Docker image pushed to a container registry (GHCR, Docker Hub, etc.).
 - R2 bucket created in Cloudflare with an R2 API token.
+- Cloudflare Email Sending domain onboarded with SPF, DKIM, and DMARC, plus an API token with Email Sending: Edit permission. Email Routing is separate from outbound sending.
 - Telegram bot created via [@BotFather](https://t.me/BotFather) and a chat ID obtained via [@userinfobot](https://t.me/userinfobot) or similar.
 
 ### docker-compose.yml
@@ -104,16 +107,16 @@ BASE_URL=https://calendar.int.lookout.wiki
 GOOGLE_SERVICE_ACCOUNT_JSON=<full-json-on-one-line>
 TELEGRAM_BOT_TOKEN=<bot-token>
 ALERT_TELEGRAM_CHAT_ID=<chat-id>
-EMAIL_FROM=noreply@example.com
+EMAIL_PROVIDER=cloudflare
+EMAIL_FROM=board@your-onboarded-domain.example
+CLOUDFLARE_ACCOUNT_ID=<cloudflare-account-id>
+CLOUDFLARE_API_TOKEN=<cloudflare-email-sending-token>
 ```
 
 Optional (with defaults):
 
 ```env
-SMTP_HOST=           # SMTP relay host; unset to disable email
-SMTP_PORT=587
-SMTP_USERNAME=
-SMTP_PASSWORD=
+CLOUDFLARE_API_URL=https://api.cloudflare.com/client/v4 # override for tests only
 RIVER_UI_EMBEDDED=false
 TICK_INTERVAL=5m
 SNAPSHOT_RETENTION_DAYS=90
@@ -132,6 +135,11 @@ healthcheck:
 ```
 
 Dokploy uses this to determine when the container is ready.
+
+The application sends through Cloudflare's REST endpoint using Go's standard
+HTTP library; no Cloudflare Go SDK is required. After onboarding, perform one
+real delivery test (for example, the admin digest command with `--email ...
+--force`) and verify the recipient mailbox.
 
 ### Litestream Replication
 

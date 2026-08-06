@@ -42,11 +42,13 @@ func buildNotifiers(app *App) map[string]jobs.Notifier {
 	}
 
 	switch {
-	case cfg.Email.Host == "":
-		app.Logger.Warn("SMTP_HOST is unset: email targets cannot be delivered")
 	case cfg.Email.From == "":
 		app.Logger.Warn("EMAIL_FROM is unset: email targets cannot be delivered")
-	default:
+	case cfg.Email.Provider == "smtp" && cfg.Email.Host == "":
+		app.Logger.Warn("SMTP_HOST is unset: email targets cannot be delivered")
+	case cfg.Email.Provider == "cloudflare" && (cfg.Email.AccountID == "" || cfg.Email.APIToken == ""):
+		app.Logger.Warn("CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_TOKEN is unset: email targets cannot be delivered")
+	case cfg.Email.Provider == "smtp":
 		notifiers = append(notifiers, &deliver.EmailNotifier{
 			Sender: &deliver.SMTPSender{
 				Host:     cfg.Email.Host,
@@ -57,6 +59,18 @@ func buildNotifiers(app *App) map[string]jobs.Notifier {
 			},
 			Renderer: deliver.EmailRenderer{BaseURL: base},
 		})
+	case cfg.Email.Provider == "cloudflare":
+		notifiers = append(notifiers, &deliver.EmailNotifier{
+			Sender: &deliver.CloudflareSender{
+				AccountID: cfg.Email.AccountID,
+				APIToken:  cfg.Email.APIToken,
+				APIURL:    cfg.Email.APIURL,
+				From:      cfg.Email.From,
+			},
+			Renderer: deliver.EmailRenderer{BaseURL: base},
+		})
+	default:
+		app.Logger.Warn("unsupported EMAIL_PROVIDER: email targets cannot be delivered", "provider", cfg.Email.Provider)
 	}
 
 	return jobs.RegisterNotifiers(notifiers...)
