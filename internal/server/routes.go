@@ -99,20 +99,9 @@ func (app *App) humaConfig() huma.Config {
 	// Scalar over the default Stoplight Elements. huma serves it at DocsPath
 	// with its own CSP and a subresource-integrity hash on the bundle.
 	cfg.DocsRenderer = huma.DocsRendererScalar
-	cfg.Info.Description = `## Overview
-
-Nightly per-recipient digest of tomorrow's Google Calendar events
-
-## Authentication
-
-| Method | Header | Notes |
-|---|---|---|
-| API Key | ` + "`X-API-Key`" + ` header | Set via X_API_KEY env var |`
+	cfg.Info.Description = "Nightly per-recipient digest of tomorrow's Google Calendar events"
 	cfg.Tags = []*huma.Tag{
 		{Name: "Monitoring", Description: "Service health and version."},
-	}
-	cfg.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
-		"xApiKey": {Type: "apiKey", In: "header", Name: "X-API-Key"},
 	}
 	return cfg
 }
