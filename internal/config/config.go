@@ -90,15 +90,18 @@ type appConf struct {
 	SnapshotRetentionDays int `env:"SNAPSHOT_RETENTION_DAYS,default=90"`
 }
 
-// emailConf is the SMTP relay digests go out through. Empty Host disables the
-// email channel: a target of that kind then fails its send loudly rather than
-// being dropped.
+// emailConf selects the email transport. SMTP is intended for local
+// development; Cloudflare is the production REST transport.
 type emailConf struct {
-	From     string `env:"EMAIL_FROM"`
-	Host     string `env:"SMTP_HOST"`
-	Port     int    `env:"SMTP_PORT,default=587"`
-	Username string `env:"SMTP_USERNAME"`
-	Password string `env:"SMTP_PASSWORD"`
+	Provider  string `env:"EMAIL_PROVIDER,default=smtp"`
+	From      string `env:"EMAIL_FROM"`
+	Host      string `env:"SMTP_HOST"`
+	Port      int    `env:"SMTP_PORT,default=587"`
+	Username  string `env:"SMTP_USERNAME"`
+	Password  string `env:"SMTP_PASSWORD"`
+	AccountID string `env:"CLOUDFLARE_ACCOUNT_ID"`
+	APIToken  string `env:"CLOUDFLARE_API_TOKEN"`
+	APIURL    string `env:"CLOUDFLARE_API_URL,default=https://api.cloudflare.com/client/v4"`
 }
 
 // IsProduction reports whether this process is configured as a deployment
