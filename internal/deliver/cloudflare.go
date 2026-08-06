@@ -63,11 +63,14 @@ func (s *CloudflareSender) Send(ctx context.Context, to, subject, text, html str
 	if err != nil {
 		return fmt.Errorf("deliver: cloudflare: request: %w", err)
 	}
-	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	closeErr := resp.Body.Close()
 	if err != nil {
 		return fmt.Errorf("deliver: cloudflare: read response: %w", err)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("deliver: cloudflare: close response: %w", closeErr)
 	}
 	var result cloudflareEmailResponse
 	if err := json.Unmarshal(body, &result); err != nil {
