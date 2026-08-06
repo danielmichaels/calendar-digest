@@ -34,7 +34,6 @@ type dbConf struct {
 	DatabaseConnectionContext time.Duration `env:"DATABASE_CONNECTION_CONTEXT,default=15s"`
 }
 type serverConf struct {
-	XApiKey      string        `env:"X_API_KEY,default=changeme"`
 	Port         int           `env:"SERVER_PORT,default=9898"`
 	TimeoutRead  time.Duration `env:"SERVER_TIMEOUT_READ,default=5s"`
 	TimeoutWrite time.Duration `env:"SERVER_TIMEOUT_WRITE,default=10s"`
@@ -185,9 +184,6 @@ func Load() (*Conf, error) {
 		problems = append(problems, problem)
 	}
 	if c.IsProduction() {
-		if c.Server.XApiKey == "changeme" {
-			problems = append(problems, "X_API_KEY must be changed from its default in production")
-		}
 		if len(c.AppConf.TrustedOrigins) == 0 {
 			problems = append(problems, "TRUSTED_ORIGINS must list at least one origin in production")
 		}

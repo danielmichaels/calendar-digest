@@ -62,7 +62,16 @@ once, so a misconfigured deployment takes one pass to fix rather than one
 restart per missing variable.
 
 Set `APP_ENV=production` in a deployment: it turns the development-friendly
-defaults into hard startup errors.
+defaults into hard startup errors. Before starting a production container, set
+these production-only requirements:
+
+- `TRUSTED_ORIGINS` must contain at least one allowed origin, such as
+  `https://calendar.example.com` (comma-separated for multiple origins).
+- `SESSION_COOKIE_SECURE` must be `true` when the site is served over HTTPS.
+
+If any of these are missing or invalid, the process exits at startup instead of
+running with an unsafe configuration. See [docs/deployment.md](./docs/deployment.md)
+for the container environment example.
 
 ## HTTP surface
 
@@ -91,4 +100,3 @@ SMS webhook contract for v2.
 ```shell
 docker build -t calendar-digest .
 ```
-

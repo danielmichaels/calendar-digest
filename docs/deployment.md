@@ -97,9 +97,24 @@ volumes:
 
 ### Environment Variables
 
-Required:
+`APP_ENV=production` enables startup validation. Configure these two values
+before starting the container; otherwise it exits instead of serving traffic:
 
 ```env
+TRUSTED_ORIGINS=https://calendar.int.lookout.wiki
+SESSION_COOKIE_SECURE=true
+```
+
+- `TRUSTED_ORIGINS` must list at least one origin, including its scheme (for
+  example, `https://calendar.int.lookout.wiki`). Use a comma-separated list for
+  multiple origins.
+- `SESSION_COOKIE_SECURE` must be `true` when the application is served over
+  HTTPS, which is the production setup.
+
+Required application and service settings:
+
+```env
+APP_ENV=production
 S3_DB_URL=s3://<account-id>/<bucket-name>
 S3_ACCESS_KEY=<r2-api-token-id>
 S3_SECRET_KEY=<r2-api-token-secret>

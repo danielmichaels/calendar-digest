@@ -1,25 +1,12 @@
 package server
 
 import (
-	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httplog/v3"
 	"log/slog"
 	"net/http"
 	"strings"
 )
-
-// ApiKeyAuth checks the X-API-Key header. The key is read from the App's
-// config rather than the package-level loader so a test can supply its own.
-func (app *App) ApiKeyAuth(api huma.API) func(ctx huma.Context, next func(huma.Context)) {
-	return func(ctx huma.Context, next func(huma.Context)) {
-		if ctx.Header("X-API-Key") != app.Conf.Server.XApiKey {
-			_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-		next(ctx)
-	}
-}
 
 // httplogOptions configures the access log: a one-line summary for local dev,
 // the full attribute set for JSON.

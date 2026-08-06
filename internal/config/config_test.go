@@ -48,13 +48,12 @@ func TestLoadReportsEveryProblemAtOnce(t *testing.T) {
 	setMinimalEnv(t)
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("SERVER_PORT", "70000")
-	// X_API_KEY is left at its default, which production rejects.
 
 	_, err := config.Load()
 	if err == nil {
 		t.Fatal("Load() = nil error, want the production problems reported")
 	}
-	for _, want := range []string{"SERVER_PORT", "X_API_KEY"} {
+	for _, want := range []string{"SERVER_PORT"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error does not mention %s:\n%v", want, err)
 		}
