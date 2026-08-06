@@ -7,6 +7,9 @@
 # `manual` appears in every event filter so the UI Restart button runs the whole
 # pipeline instead of just the clone.
 
+labels:
+  pool: big-agent
+
 steps:
   build:
     image: golang:1.26
