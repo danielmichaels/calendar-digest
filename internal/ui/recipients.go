@@ -79,7 +79,7 @@ func (h *Handlers) handleRecipientDigestNow(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	sse := datastar.NewSSE(w, r)
-	status := "Digest capture failed."
+	var status string
 	statusOK := false
 
 	if h.DigestRunner == nil {
