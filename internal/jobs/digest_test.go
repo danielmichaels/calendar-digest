@@ -143,6 +143,31 @@ func TestDigestRerunDoesNotFanOutTwice(t *testing.T) {
 	}
 }
 
+func TestForcedDigestRerunFansOutAgain(t *testing.T) {
+	db := testhelpers.NewDB(t)
+	q := store.New(db)
+	rc := newEnqueuer(t, db)
+
+	r := createRecipient(t, q, "ada", "Australia/Brisbane", "21:00")
+	createTarget(t, q, r.ID, "telegram", `{"chat_id":"1"}`)
+
+	fake := calendar.NewFake()
+	w := digestWorker(db, rc, fake)
+	args := jobs.DigestArgs{RecipientID: r.ID, DigestDate: "2026-08-05"}
+
+	if err := runDigest(t, w, args); err != nil {
+		t.Fatalf("first digest: %v", err)
+	}
+	args.Force = true
+	if err := runDigest(t, w, args); err != nil {
+		t.Fatalf("forced digest: %v", err)
+	}
+
+	if sends := argsOfKind[jobs.SendArgs](t, db); len(sends) != 2 {
+		t.Errorf("enqueued %d sends after forced rerun, want 2: %v", len(sends), sends)
+	}
+}
+
 // The events a recipient was told about must be the ones the page shows, so a
 // rerun leaves the stored day alone even when the calendar has moved on.
 func TestDigestRerunDoesNotRewriteTheStoredDay(t *testing.T) {

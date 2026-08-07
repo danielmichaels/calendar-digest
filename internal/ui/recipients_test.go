@@ -100,7 +100,7 @@ func TestSendCalendarDigestNowUsesTheRecipientZoneAndReportsSuccess(t *testing.T
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
 	}
-	if len(runner.args) != 1 || runner.args[0].DigestDate != "2026-08-05" {
+	if len(runner.args) != 1 || runner.args[0].DigestDate != "2026-08-05" || !runner.args[0].Force {
 		t.Fatalf("digest args = %+v, want recipient's next local day", runner.args)
 	}
 	if !strings.Contains(rec.Body.String(), "Calendar read succeeded for 2026-08-05") {
