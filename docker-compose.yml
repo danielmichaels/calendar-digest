@@ -2,6 +2,7 @@ version: "3.9"
 
 services:
   app:
+    user: "0:0"
     image: ghcr.io/danielmichaels/calendar-digest:latest
     pull_policy: always
     restart: always
