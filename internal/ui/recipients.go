@@ -12,6 +12,7 @@ import (
 
 	"github.com/danielmichaels/calendar-digest/internal/calendar"
 	"github.com/danielmichaels/calendar-digest/internal/digest"
+	"github.com/danielmichaels/calendar-digest/internal/jobs"
 	"github.com/danielmichaels/calendar-digest/internal/store"
 	"github.com/danielmichaels/calendar-digest/internal/ui/templates"
 
@@ -70,6 +71,35 @@ func (h *Handlers) handleRecipientEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.renderForm(w, r, view)
+}
+
+func (h *Handlers) handleRecipientDigestNow(w http.ResponseWriter, r *http.Request) {
+	recipient, ok := h.recipientFromPath(w, r)
+	if !ok {
+		return
+	}
+	sse := datastar.NewSSE(w, r)
+	status := "Digest capture failed."
+	statusOK := false
+
+	if h.DigestRunner == nil {
+		status = "Calendar capture is not configured on this server."
+	} else if loc, err := time.LoadLocation(recipient.Tz); err != nil {
+		status = "Cannot determine the recipient's timezone: " + err.Error()
+	} else {
+		digestDate := h.now().In(loc).AddDate(0, 0, 1).Format(time.DateOnly)
+		err := h.DigestRunner.RunDigestNow(r.Context(), jobs.DigestArgs{
+			RecipientID: recipient.ID,
+			DigestDate:  digestDate,
+		})
+		if err != nil {
+			status = "Calendar access failed: " + err.Error()
+		} else {
+			status = "Calendar read succeeded for " + digestDate + "; the digest is queued for delivery."
+			statusOK = true
+		}
+	}
+	_ = sse.PatchElementTempl(templates.DigestNow(recipient.ID, status, statusOK))
 }
 
 func (h *Handlers) editView(

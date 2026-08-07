@@ -34,6 +34,16 @@ type fakeNotifier struct {
 	target []json.RawMessage
 }
 
+type fakeDigestRunner struct {
+	args []jobs.DigestArgs
+	err  error
+}
+
+func (f *fakeDigestRunner) RunDigestNow(_ context.Context, args jobs.DigestArgs) error {
+	f.args = append(f.args, args)
+	return f.err
+}
+
 func (f *fakeNotifier) Kind() string { return f.kind }
 
 func (f *fakeNotifier) Send(
@@ -72,6 +82,44 @@ func TestCreateRecipientStoresItAndGoesToItsChannels(t *testing.T) {
 	// where channels are added rather than back on the overview.
 	if body := rec.Body.String(); !strings.Contains(body, "/app/recipients/") {
 		t.Errorf("did not redirect to the new recipient:\n%s", body)
+	}
+}
+
+func TestSendCalendarDigestNowUsesTheRecipientZoneAndReportsSuccess(t *testing.T) {
+	h, q, _ := newHandlers(t)
+	h.Now = func() time.Time { return homeNow }
+	r, _ := q.CreateRecipient(t.Context(), store.CreateRecipientParams{
+		Name: "Dan", CalendarID: "dan@example.com", NotifyTime: "21:00",
+		Tz: "Australia/Brisbane", Enabled: true,
+	})
+	runner := &fakeDigestRunner{}
+	h.DigestRunner = runner
+
+	rec := send(t, h, http.MethodPost, "/app/recipients/"+itoa(r.ID)+"/digest-now", "")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if len(runner.args) != 1 || runner.args[0].DigestDate != "2026-08-05" {
+		t.Fatalf("digest args = %+v, want recipient's next local day", runner.args)
+	}
+	if !strings.Contains(rec.Body.String(), "Calendar read succeeded for 2026-08-05") {
+		t.Errorf("success was not rendered:\n%s", rec.Body.String())
+	}
+}
+
+func TestSendCalendarDigestNowReportsCalendarFailure(t *testing.T) {
+	h, q, _ := newHandlers(t)
+	r, _ := q.CreateRecipient(t.Context(), store.CreateRecipientParams{
+		Name: "Dan", CalendarID: "dan@example.com", NotifyTime: "21:00",
+		Tz: "Australia/Brisbane", Enabled: true,
+	})
+	h.DigestRunner = &fakeDigestRunner{err: errors.New("calendar: access refused")}
+
+	rec := send(t, h, http.MethodPost, "/app/recipients/"+itoa(r.ID)+"/digest-now", "")
+
+	if !strings.Contains(rec.Body.String(), "Calendar access failed: calendar: access refused") {
+		t.Errorf("failure was not rendered:\n%s", rec.Body.String())
 	}
 }
 
@@ -383,7 +431,7 @@ func TestEditPageShowsTheChannels(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"9911", "dan@example.com", "Australia/Brisbane", "21:00"} {
+	for _, want := range []string{"9911", "dan@example.com", "Australia/Brisbane", "21:00", "Send calendar digest now"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("edit page is missing %q", want)
 		}
