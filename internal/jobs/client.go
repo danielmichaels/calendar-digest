@@ -22,6 +22,7 @@ const maxWorkers = 10
 type Client struct {
 	River *river.Client[*sql.Tx]
 	ui    *riverui.Handler
+	deps  *Deps
 	// worksJobs is false while workerRegistry is empty, in which case River is
 	// built for inserts only and never started.
 	worksJobs bool
@@ -106,7 +107,7 @@ func NewClient(
 	// every one of them.
 	deps.Jobs = rc
 
-	c := &Client{River: rc, worksJobs: worksJobs}
+	c := &Client{River: rc, worksJobs: worksJobs, deps: deps}
 	// Built only when it is going to be served: the handler keeps polling
 	// caches of its own, so an unmounted one is a background cost for nothing.
 	if cfg.AppConf.RiverUIEnabled {
@@ -121,6 +122,23 @@ func NewClient(
 		c.ui = ui
 	}
 	return c, nil
+}
+
+// DigestRunner captures and queues one recipient's digest through the same
+// worker path used by the scheduled run. It is intentionally separate from
+// River's enqueue API so the UI can report a calendar-read failure immediately.
+type DigestRunner interface {
+	RunDigestNow(ctx context.Context, args DigestArgs) error
+}
+
+// RunDigestNow runs one digest synchronously. The snapshot and channel sends
+// are still handed to the normal River workers; only the calendar capture is
+// made immediate so an operator can verify access from the recipient page.
+func (c *Client) RunDigestNow(ctx context.Context, args DigestArgs) error {
+	if c.deps == nil || c.deps.Calendar == nil {
+		return fmt.Errorf("jobs: digest: no calendar client configured")
+	}
+	return (&DigestWorker{Deps: c.deps}).Work(ctx, &river.Job[DigestArgs]{Args: args})
 }
 
 // UIHandler is the job dashboard, for mounting at config RiverUIPath, or nil

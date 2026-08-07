@@ -68,8 +68,10 @@ type RecipientFormView struct {
 	Tz         string
 	Enabled    bool
 	// Problems are validation messages keyed by field name.
-	Problems map[string]string
-	Targets  []TargetFormRow
+	Problems        map[string]string
+	Targets         []TargetFormRow
+	DigestNowStatus string
+	DigestNowOK     bool
 }
 
 // TargetFormRow is one channel, and is patched on its own: toggling or testing

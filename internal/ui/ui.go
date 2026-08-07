@@ -35,6 +35,9 @@ type Deps struct {
 	// nightly run would. A kind missing here is a channel this server cannot
 	// deliver at all, and the button says so.
 	Notifiers map[string]jobs.Notifier
+	// DigestRunner captures through the real calendar client and queues the
+	// normal channel sends, allowing the recipient page to test calendar access.
+	DigestRunner jobs.DigestRunner
 }
 
 func (d *Deps) now() time.Time {
@@ -63,6 +66,7 @@ func (h *Handlers) Routes() http.Handler {
 	r.Post("/recipients", h.handleRecipientCreate)
 	r.Get("/recipients/{id}", h.handleRecipientEdit)
 	r.Post("/recipients/{id}", h.handleRecipientUpdate)
+	r.Post("/recipients/{id}/digest-now", h.handleRecipientDigestNow)
 	r.Delete("/recipients/{id}", h.handleRecipientDelete)
 
 	r.Post("/recipients/{id}/targets", h.handleTargetCreate)
