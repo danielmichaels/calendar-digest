@@ -91,6 +91,7 @@ func (h *Handlers) handleRecipientDigestNow(w http.ResponseWriter, r *http.Reque
 		err := h.DigestRunner.RunDigestNow(r.Context(), jobs.DigestArgs{
 			RecipientID: recipient.ID,
 			DigestDate:  digestDate,
+			Force:       true,
 		})
 		if err != nil {
 			status = "Calendar access failed: " + err.Error()
