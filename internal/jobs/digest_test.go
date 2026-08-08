@@ -2,6 +2,7 @@ package jobs_test
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -86,6 +87,50 @@ func TestDigestCapturesASnapshotAndFansOutOnePerEnabledTarget(t *testing.T) {
 		if !found {
 			t.Errorf("no send enqueued for target %d", want)
 		}
+	}
+}
+
+func TestDigestCombinesEventsFromEveryConfiguredCalendarInTimeOrder(t *testing.T) {
+	db := testhelpers.NewDB(t)
+	q := store.New(db)
+	rc := newEnqueuer(t, db)
+
+	r := createRecipient(t, q, "family", "Australia/Brisbane", "21:00")
+	if _, err := q.UpdateRecipient(t.Context(), store.UpdateRecipientParams{
+		ID: r.ID, Name: r.Name, CalendarID: "dan@example.com, wife@example.com",
+		NotifyTime: r.NotifyTime, Tz: r.Tz, Enabled: r.Enabled,
+	}); err != nil {
+		t.Fatalf("configure calendars: %v", err)
+	}
+	fake := calendar.NewFake()
+	fake.Set("dan@example.com", "2026-08-05", calendar.Event{
+		ID: "dan", Summary: "Dan's appointment", Start: time.Date(2026, 8, 5, 14, 0, 0, 0, time.UTC),
+	})
+	fake.Set("wife@example.com", "2026-08-05", calendar.Event{
+		ID: "wife", Summary: "Wife's appointment", Start: time.Date(2026, 8, 5, 9, 0, 0, 0, time.UTC),
+	})
+
+	if err := runDigest(t, digestWorker(db, rc, fake), jobs.DigestArgs{
+		RecipientID: r.ID, DigestDate: "2026-08-05",
+	}); err != nil {
+		t.Fatalf("digest: %v", err)
+	}
+
+	snapshot, err := q.GetSnapshotForDate(t.Context(), store.GetSnapshotForDateParams{
+		RecipientID: r.ID, DigestDate: "2026-08-05",
+	})
+	if err != nil {
+		t.Fatalf("get snapshot: %v", err)
+	}
+	var events []calendar.Event
+	if err := json.Unmarshal([]byte(snapshot.Events), &events); err != nil {
+		t.Fatalf("decode snapshot: %v", err)
+	}
+	if len(events) != 2 || events[0].ID != "wife" || events[1].ID != "dan" {
+		t.Errorf("snapshot events = %+v, want both calendars ordered by time", events)
+	}
+	if got := fake.Calls(); len(got) != 2 || got[0].CalendarID != "dan@example.com" || got[1].CalendarID != "wife@example.com" {
+		t.Errorf("calendar calls = %+v, want both configured calendars", got)
 	}
 }
 
