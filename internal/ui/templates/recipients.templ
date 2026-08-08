@@ -50,17 +50,17 @@ templ RecipientFormBody(v RecipientFormView) {
 				class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
 			/>
 		}
-		@field("Calendar ID", "calendar_id", v.Problems) {
+		@field("Calendar IDs", "calendar_id", v.Problems) {
 			<input
 				type="text"
 				data-bind="calendar_id"
 				value={ v.CalendarID }
 				autocomplete="off"
-				placeholder="dan@example.com"
+				placeholder="dan@example.com, wife@example.com"
 				class="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
 			/>
 			<p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-				The calendar shared with the service account, usually an email address.
+				Comma-separated calendars shared with the service account, usually email addresses.
 			</p>
 		}
 		<div class="mt-5 grid gap-5 sm:grid-cols-2">

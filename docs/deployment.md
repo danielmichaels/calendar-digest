@@ -50,7 +50,7 @@ Each recipient must share their calendar with the service account. This is done 
 8. Click **Save**.
 
 For a primary calendar, the Calendar ID is the owner's Gmail address (e.g., `dan@gmail.com`).
-This ID is what goes in the `calendar_id` field when adding a recipient.
+Enter one or more shared IDs in the recipient's `calendar_id` field, separated by commas (for example, `dan@gmail.com, wife@gmail.com`). The digest merges all configured calendars in time order.
 
 ---
 

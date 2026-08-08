@@ -45,20 +45,22 @@ func (w *VerifyCalendarAccessWorker) Work(
 
 	refused := false
 	for _, r := range recipients {
-		err := w.Calendar.VerifyAccess(ctx, r.CalendarID)
-		switch {
-		case err == nil:
-		case errors.Is(err, calendar.ErrAccess):
-			refused = true
-			w.raise(ctx, AlertCalendarAccess, fmt.Sprintf(
-				"%s's calendar (%s) cannot be read. This will not fix itself — the "+
-					"service account key or the calendar share needs attention in the "+
-					"Google console.\n\n%s", r.Name, r.CalendarID, err))
-		default:
-			// Transient. Let River retry the whole check rather than alerting
-			// on what may be a blip — and leave the flag alone, since a blip is
-			// not evidence either way.
-			return fmt.Errorf("jobs: verify: %s: %w", r.CalendarID, err)
+		for _, calendarID := range calendar.IDs(r.CalendarID) {
+			err := w.Calendar.VerifyAccess(ctx, calendarID)
+			switch {
+			case err == nil:
+			case errors.Is(err, calendar.ErrAccess):
+				refused = true
+				w.raise(ctx, AlertCalendarAccess, fmt.Sprintf(
+					"%s's calendar (%s) cannot be read. This will not fix itself — the "+
+						"service account key or the calendar share needs attention in the "+
+						"Google console.\n\n%s", r.Name, calendarID, err))
+			default:
+				// Transient. Let River retry the whole check rather than alerting
+				// on what may be a blip — and leave the flag alone, since a blip is
+				// not evidence either way.
+				return fmt.Errorf("jobs: verify: %s: %w", calendarID, err)
+			}
 		}
 	}
 

@@ -6,8 +6,23 @@ package calendar
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 )
+
+// IDs splits the comma-separated calendar IDs stored for one recipient. The
+// original single-ID form remains valid, so existing recipients need no data
+// migration when another shared calendar is added.
+func IDs(value string) []string {
+	parts := strings.Split(value, ",")
+	ids := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if id := strings.TrimSpace(part); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
 
 // errMissingEndpoint means an event arrived with no start or no end. It costs
 // that event its place in the digest, not the whole day.

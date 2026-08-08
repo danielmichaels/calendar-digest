@@ -152,8 +152,8 @@ func problems(s recipientSignals) map[string]string {
 	if s.Name == "" {
 		found["name"] = "A name is required."
 	}
-	if s.CalendarID == "" {
-		found["calendar_id"] = "A calendar ID is required: it is the address the service account reads."
+	if len(calendar.IDs(s.CalendarID)) == 0 {
+		found["calendar_id"] = "At least one calendar ID is required: it is the address the service account reads."
 	}
 	if problem := notifyTimeProblem(s.NotifyTime); problem != "" {
 		found["notify_time"] = problem

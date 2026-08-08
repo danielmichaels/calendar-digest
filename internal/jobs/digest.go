@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/danielmichaels/calendar-digest/internal/calendar"
@@ -80,23 +81,24 @@ func (w *DigestWorker) Work(ctx context.Context, job *river.Job[DigestArgs]) err
 	// Strictly outside the transaction below. The pool holds a single
 	// connection, so a transaction pinned across this call would block every
 	// other query in the process for the length of an HTTP round trip.
-	events, err := w.Calendar.EventsForDay(ctx, recipient.CalendarID, job.Args.DigestDate, loc)
-	if err != nil {
-		if errors.Is(err, calendar.ErrAccess) {
-			w.recordCalendarAccess(ctx, false)
-			w.raise(ctx, AlertCalendarAccess, fmt.Sprintf(
-				"%s's digest for %s could not be captured: their calendar (%s) cannot "+
-					"be read. This will not fix itself — the service account key or the "+
-					"calendar share needs attention in the Google console.\n\n%s",
-				recipient.Name, job.Args.DigestDate, recipient.CalendarID, err))
-			// Cancelled rather than retried: no number of attempts restores a
-			// revoked grant, and burning the chain only delays the alert. The
-			// due check offers this digest again on the next tick, so it
-			// recovers by itself the moment access comes back.
-			return river.JobCancel(err)
+	var events []calendar.Event
+	for _, calendarID := range calendar.IDs(recipient.CalendarID) {
+		calendarEvents, err := w.Calendar.EventsForDay(ctx, calendarID, job.Args.DigestDate, loc)
+		if err != nil {
+			if errors.Is(err, calendar.ErrAccess) {
+				w.recordCalendarAccess(ctx, false)
+				w.raise(ctx, AlertCalendarAccess, fmt.Sprintf(
+					"%s's digest for %s could not be captured: calendar (%s) cannot "+
+						"be read. This will not fix itself — the service account key or the "+
+						"calendar share needs attention in the Google console.\n\n%s",
+					recipient.Name, job.Args.DigestDate, calendarID, err))
+				return river.JobCancel(err)
+			}
+			return fmt.Errorf("jobs: digest: fetch %s from %s: %w", job.Args.DigestDate, calendarID, err)
 		}
-		return fmt.Errorf("jobs: digest: fetch %s: %w", job.Args.DigestDate, err)
+		events = append(events, calendarEvents...)
 	}
+	sort.SliceStable(events, func(i, j int) bool { return events[i].Start.Before(events[j].Start) })
 	// A day that came back is proof access works, and it arrives sooner than
 	// the daily verification would.
 	w.recordCalendarAccess(ctx, true)

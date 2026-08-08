@@ -71,6 +71,28 @@ func TestVerifyIsSilentWhenEveryCalendarReads(t *testing.T) {
 	}
 }
 
+func TestVerifyChecksEveryConfiguredCalendar(t *testing.T) {
+	db := testhelpers.NewDB(t)
+	q := store.New(db)
+	rc := newEnqueuer(t, db)
+
+	r := createRecipient(t, q, "family", "Australia/Brisbane", "21:00")
+	if _, err := q.UpdateRecipient(t.Context(), store.UpdateRecipientParams{
+		ID: r.ID, Name: r.Name, CalendarID: "dan@example.com, wife@example.com",
+		NotifyTime: r.NotifyTime, Tz: r.Tz, Enabled: r.Enabled,
+	}); err != nil {
+		t.Fatalf("configure calendars: %v", err)
+	}
+	fake := calendar.NewFake()
+
+	if err := runVerify(t, verifyWorker(db, rc, fake)); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if got := fake.Calls(); len(got) != 2 || got[0].CalendarID != "dan@example.com" || got[1].CalendarID != "wife@example.com" {
+		t.Errorf("calendar calls = %+v, want every configured calendar", got)
+	}
+}
+
 // No credential at all is the most urgent version of this: nothing can be
 // captured for anyone.
 func TestVerifyAlertsWhenNoCalendarIsConfigured(t *testing.T) {

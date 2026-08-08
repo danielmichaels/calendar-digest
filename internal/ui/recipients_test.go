@@ -175,7 +175,7 @@ func TestCreateRecipientReportsEveryProblemAtOnce(t *testing.T) {
 		`{"name":"","calendar_id":"","notify_time":"nope","tz":"Mars/Olympus","enabled":true}`)
 
 	body := rec.Body.String()
-	for _, want := range []string{"name is required", "calendar ID is required", "HH:MM", "Mars/Olympus"} {
+	for _, want := range []string{"name is required", "At least one calendar ID is required", "HH:MM", "Mars/Olympus"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("response is missing %q:\n%s", want, body)
 		}
