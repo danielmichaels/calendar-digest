@@ -58,6 +58,37 @@ func (q *Queries) GetSnapshotForDate(ctx context.Context, arg GetSnapshotForDate
 	return i, err
 }
 
+const replaceSnapshotEvents = `-- name: ReplaceSnapshotEvents :execrows
+UPDATE digest_snapshots
+SET events = ?,
+    created_at = ?,
+    notified_at = NULL
+WHERE recipient_id = ?
+  AND digest_date = ?
+`
+
+type ReplaceSnapshotEventsParams struct {
+	Events      string `json:"events"`
+	CreatedAt   string `json:"created_at"`
+	RecipientID int64  `json:"recipient_id"`
+	DigestDate  string `json:"digest_date"`
+}
+
+// ReplaceSnapshotEvents is the raw operator-refresh write. Scheduled captures
+// must use UpsertSnapshot instead so old snapshots remain unchanged.
+func (q *Queries) ReplaceSnapshotEvents(ctx context.Context, arg ReplaceSnapshotEventsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, replaceSnapshotEvents,
+		arg.Events,
+		arg.CreatedAt,
+		arg.RecipientID,
+		arg.DigestDate,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const insertSnapshotIfAbsent = `-- name: InsertSnapshotIfAbsent :execrows
 INSERT INTO digest_snapshots (recipient_id, digest_date, token, events, created_at)
 VALUES (?, ?, ?, ?, ?)
