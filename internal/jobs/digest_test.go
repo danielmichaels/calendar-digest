@@ -197,12 +197,14 @@ func TestForcedDigestRerunFansOutAgain(t *testing.T) {
 	createTarget(t, q, r.ID, "telegram", `{"chat_id":"1"}`)
 
 	fake := calendar.NewFake()
+	fake.Set(r.CalendarID, "2026-08-05", calendar.Event{ID: "original", Summary: "Original"})
 	w := digestWorker(db, rc, fake)
 	args := jobs.DigestArgs{RecipientID: r.ID, DigestDate: "2026-08-05"}
 
 	if err := runDigest(t, w, args); err != nil {
 		t.Fatalf("first digest: %v", err)
 	}
+	fake.Set(r.CalendarID, "2026-08-05", calendar.Event{ID: "refreshed", Summary: "Refreshed"})
 	args.Force = true
 	if err := runDigest(t, w, args); err != nil {
 		t.Fatalf("forced digest: %v", err)
@@ -210,6 +212,15 @@ func TestForcedDigestRerunFansOutAgain(t *testing.T) {
 
 	if sends := argsOfKind[jobs.SendArgs](t, db); len(sends) != 2 {
 		t.Errorf("enqueued %d sends after forced rerun, want 2: %v", len(sends), sends)
+	}
+	snapshot, err := q.GetSnapshotForDate(t.Context(), store.GetSnapshotForDateParams{
+		RecipientID: r.ID, DigestDate: args.DigestDate,
+	})
+	if err != nil {
+		t.Fatalf("get refreshed snapshot: %v", err)
+	}
+	if !contains(snapshot.Events, "Refreshed") || contains(snapshot.Events, "Original") {
+		t.Errorf("snapshot events = %s, want refreshed calendar contents", snapshot.Events)
 	}
 }
 

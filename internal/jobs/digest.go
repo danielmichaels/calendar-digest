@@ -35,9 +35,10 @@ const digestMaxAttempts = 8
 type DigestArgs struct {
 	RecipientID int64  `json:"recipient_id"`
 	DigestDate  string `json:"digest_date"`
-	// Force fans out the saved digest even when this day was already captured.
-	// It is for an operator's explicit "send now" request; scheduled jobs leave
-	// it false so their five-minute sweep remains idempotent.
+	// Force refreshes and fans out the digest even when this day was already
+	// captured. It is only for an operator's explicit "send now" request;
+	// scheduled jobs leave it false so their five-minute sweep remains
+	// idempotent.
 	Force bool `json:"force"`
 }
 
@@ -119,9 +120,19 @@ func (w *DigestWorker) Work(ctx context.Context, job *river.Job[DigestArgs]) err
 			if err != nil {
 				return fmt.Errorf("jobs: digest: upsert snapshot: %w", err)
 			}
+			if job.Args.Force && !created {
+				if _, err := q.ReplaceSnapshotEvents(ctx, store.ReplaceSnapshotEventsParams{
+					RecipientID: recipient.ID,
+					DigestDate:  job.Args.DigestDate,
+					Events:      string(encoded),
+					CreatedAt:   store.FormatTime(w.now()),
+				}); err != nil {
+					return fmt.Errorf("jobs: digest: refresh snapshot: %w", err)
+				}
+			}
 			// The scheduled sweep must not resend an already captured day. An
-			// operator's explicit force request is the exception: it deliberately
-			// sends the saved snapshot through every enabled channel again.
+			// operator's explicit force request is the exception: it refreshes the
+			// saved snapshot, then sends it through every enabled channel again.
 			if !created && !job.Args.Force {
 				return nil
 			}

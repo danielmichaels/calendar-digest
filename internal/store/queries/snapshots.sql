@@ -15,6 +15,17 @@ FROM digest_snapshots
 WHERE recipient_id = ?
   AND digest_date = ?;
 
+-- ReplaceSnapshotEvents is only for an explicit operator refresh. Scheduled
+-- captures keep their original snapshot so previously sent detail links stay
+-- stable.
+-- name: ReplaceSnapshotEvents :execrows
+UPDATE digest_snapshots
+SET events = ?,
+    created_at = ?,
+    notified_at = NULL
+WHERE recipient_id = ?
+  AND digest_date = ?;
+
 -- name: FindSnapshotByToken :one
 SELECT *
 FROM digest_snapshots
