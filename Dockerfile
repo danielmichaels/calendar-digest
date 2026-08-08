@@ -1,19 +1,29 @@
 FROM litestream/litestream:0.5.9 AS litestream
-FROM ghcr.io/danielmichaels/ci-tailwind:2026-08-05 AS tailwind
-FROM golang:1.26 AS builder
+# Generate assets and compile Go on the Buildx host rather than in an emulated
+# target container. The final go build explicitly selects the target below.
+FROM --platform=$BUILDPLATFORM ghcr.io/danielmichaels/ci-tailwind:2026-08-05 AS tailwind
+# ci-templ:2026-08-05 ships templ v0.3.1020, matching the version pinned in
+# go.mod. Keep the two versions in step when either one changes.
+FROM --platform=$BUILDPLATFORM ghcr.io/danielmichaels/ci-templ:2026-08-05 AS templ
+FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
+
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /build
 
 # Only the module files first, so dependency download caches independently of
 # source changes.
 COPY go.mod go.sum ./
-RUN go mod download && go mod verify
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download && go mod verify
 
 COPY . .
 
 # Copied from ci-tailwind rather than curl'd here: its glibc build needs a
 # Debian builder, not Alpine — see danielmichaels/ci-images README.
 COPY --from=tailwind /usr/local/bin/tailwindcss /usr/local/bin/tailwindcss
+COPY --from=templ /go/bin/templ /usr/local/bin/templ
 
 # Both generators are guarded rather than templated: the files they consume
 # only exist for some generated configurations.
@@ -22,18 +32,19 @@ RUN if [ -f ./assets/css/input.css ]; then \
     fi
 
 # templ output is generated, never committed, so it must be produced here too.
-RUN if ls ./internal/ui/templates/*.templ >/dev/null 2>&1; then go tool templ generate; fi
+# The prebuilt binary avoids compiling the generator once per target platform.
+RUN if ls ./internal/ui/templates/*.templ >/dev/null 2>&1; then templ generate; fi
 
 # Injected by CI; the fallbacks keep a bare `docker build` working.
 ARG VERSION=dev
 ARG REVISION=unknown
 
-ENV CGO_ENABLED=0 GOOS=linux
-
 # The module path comes from go.mod rather than being baked in, so the ldflags
 # stay correct if the module is ever renamed.
-RUN MODULE=$(go list -m) && \
-    go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    MODULE=$(go list -m) && \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
       -trimpath \
       -ldflags="-s -w \
         -X ${MODULE}/internal/version.Version=${VERSION} \

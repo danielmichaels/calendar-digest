@@ -66,6 +66,11 @@ steps:
     settings:
       repo: ghcr.io/danielmichaels/calendar-digest
       registry: ghcr.io
+      # The Buildx builder is ephemeral on this agent. Persist intermediate
+      # layers in GHCR so module downloads and unchanged build stages survive
+      # between publish pipelines.
+      cache_images:
+        - ghcr.io/danielmichaels/calendar-digest:buildcache
       platforms: linux/amd64,linux/arm64
       dockerfile: Dockerfile
       username:
