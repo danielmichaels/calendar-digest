@@ -1,4 +1,4 @@
-FROM litestream/litestream:0.5.9 AS litestream
+FROM litestream/litestream:0.5.17 AS litestream
 # Generate assets and compile Go on the Buildx host rather than in an emulated
 # target container. The final go build explicitly selects the target below.
 FROM --platform=$BUILDPLATFORM ghcr.io/danielmichaels/ci-tailwind:2026-08-05 AS tailwind
