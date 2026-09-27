@@ -64,7 +64,8 @@ COPY --from=builder ["/out/app", "/usr/bin/app"]
 # needs -config passing to every invocation.
 COPY ["litestream.yml", "/etc/litestream.yml"]
 
-ENV LITESTREAM_L1_INTERVAL=5m \
+ENV DB_SYNC_INTERVAL=5m \
+    LITESTREAM_L1_INTERVAL=5m \
     LITESTREAM_L2_INTERVAL=1h \
     LITESTREAM_L3_INTERVAL=24h \
     LITESTREAM_SNAPSHOT_INTERVAL=24h \
