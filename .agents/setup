@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+export PATH="$HOME/.local/bin:$PATH"
+mkdir -p "$HOME/.local/bin" "$HOME/.local/share/calendar-digest"
+scratch="$(mktemp -d)"
+trap 'rm -rf "$scratch"' EXIT
+step() { printf '\n[%s] %s\n' "$(date -u +%T)" "$*"; }
+download() {
+  curl --fail --silent --show-error --location --retry 2 "$1" -o "$scratch/archive.tar.gz"
+  printf '%s  %s\n' "$2" "$scratch/archive.tar.gz" | sha256sum --check --status
+}
+install_tool() {
+  local binary="$1" version="$2" url="$3" checksum="$4" version_arg="$5"
+  if "$HOME/.local/bin/$binary" "$version_arg" 2>&1 | grep -Fq "$version"; then return; fi
+  step "Installing $binary $version"
+  download "$url" "$checksum"
+  tar -xzf "$scratch/archive.tar.gz" -C "$scratch" "$binary"
+  install -m 755 "$scratch/$binary" "$HOME/.local/bin/$binary"
+}
+step 'Checking base toolchain'
+if [[ "$(uname -m)" != x86_64 ]]; then echo 'This setup pins Linux amd64 orb tools.' >&2; exit 1; fi
+if ! command -v node >/dev/null || [[ "$(node -p 'Number(process.versions.node.split(".")[0])')" -lt 22 ]]; then
+  echo 'Node 22 or newer is required from the Amp orb base image.' >&2; exit 1
+fi
+if [[ "$(npm --version)" != 12.2.1 ]]; then
+  step 'Installing npm 12.2.1 (fixes npm 10 peer resolution)'
+  sudo npm install --global npm@12.2.1 --no-audit --no-fund
+fi
+if [[ ! -x "$HOME/.local/share/calendar-digest/go/bin/go" ]] || ! "$HOME/.local/share/calendar-digest/go/bin/go" version | grep -Fq go1.26.10; then
+  step 'Installing Go 1.26.10'
+  download 'https://go.dev/dl/go1.26.10.linux-amd64.tar.gz' 'ccfe7ae822d2c2f41f4fe7c956199967a4dac22d0ee0d2b2bfdb440aab3b20c5'
+  tar -xzf "$scratch/archive.tar.gz" -C "$HOME/.local/share/calendar-digest"
+fi
+ln -sfn "$HOME/.local/share/calendar-digest/go/bin/go" "$HOME/.local/bin/go"
+ln -sfn "$HOME/.local/share/calendar-digest/go/bin/gofmt" "$HOME/.local/bin/gofmt"
+install_tool task 3.54.0 'https://github.com/go-task/task/releases/download/v3.54.0/task_linux_amd64.tar.gz' '680859dbb4d881a9c72d4d9a8f510825450849af8567deacd7302c01124416fb' --version
+install_tool air 1.67.4 'https://github.com/air-verse/air/releases/download/v1.67.4/air_1.67.4_linux_amd64.tar.gz' 'c8cc405210e557e2681275688ce700441eac53db9fb42bb58764874ee9aa783d' -v
+install_tool sqlc 1.31.1 'https://github.com/sqlc-dev/sqlc/releases/download/v1.31.1/sqlc_1.31.1_linux_amd64.tar.gz' '497ae4fcdfa64c5b0c311ffe4c2bd991e43991e82e5367792ed78bc2dca27354' version
+step 'Installing locked Worker dependencies'
+npm install --ignore-scripts --no-audit --no-fund
+ln -sfn "$root/node_modules/.bin/tailwindcss" "$HOME/.local/bin/tailwindcss"
+step 'Downloading Go rollback dependencies and generating templates'
+go mod download
+go tool templ generate
+task css
+step 'Preparing local-only Worker database'
+[[ -f .dev.vars ]] || cp .dev.vars.example .dev.vars
+npm run db:local
+step 'Orb setup finished; no services started and no Cloudflare resources changed'

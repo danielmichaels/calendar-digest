@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+for tool in node npm go task air sqlc tailwindcss; do
+  command -v "$tool" >/dev/null || { echo "Missing $tool; run .agents/setup." >&2; exit 1; }
+done
+[[ -x node_modules/.bin/wrangler ]] || { echo 'Worker dependencies missing; run .agents/setup.' >&2; exit 1; }
+echo 'Worker and Go toolchains ready. No services or authentication are started on resume.'

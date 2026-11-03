@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "calendar-digest",
+  "account_id": "838426fc87fcbeed8c0977bd7dccecad",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-11-03",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "calendar.danielms.site", "custom_domain": true }],
+  "rules": [{ "type": "Text", "globs": ["**/datastar.js"], "fallthrough": false }],
+  "observability": { "enabled": true },
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "vars": {
+    "AUTOMATION_ENABLED": "false",
+    "DELIVERY_ENABLED": "false",
+    "ACCESS_HOST": "calendar.danielms.site",
+    "ACCESS_TEAM_DOMAIN": "danielms.cloudflareaccess.com",
+    "ACCESS_AUD": "1d1152e91266bb8fc5b8fd0107e792c5e52428bcc9ee07483c39bc890fd4361c",
+    "ACCESS_EMAILS": "dan@danielms.site",
+    "BASE_URL": "https://calendar.danielms.site",
+    "SNAPSHOT_RETENTION_DAYS": "90"
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "calendar-digest",
+    "database_id": "1682e65a-a930-4a63-bcb9-38f8984fddb1",
+    "migrations_dir": "worker/migrations"
+  }]
+}

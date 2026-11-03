@@ -5,7 +5,9 @@ comments — architecture decisions, deployment runbooks, and domain rules.
 
 Starting points:
 
+- [workers.md](./workers.md) — Worker architecture, Amp-only operations, orb
+  setup, consistent SQLite import, cutover and rollback.
 - [deployment.md](./deployment.md) — GCP setup, calendar sharing, Dokploy deploy,
-  SMS webhook contract.
+  SMS webhook contract (legacy container runbook).
 - [decisions/](./decisions/) — one short file per decision worth remembering,
   with the context that made it the right call at the time.

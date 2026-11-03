@@ -108,3 +108,7 @@ dist/
 .pi
 .claude
 data/
+.wrangler/
+.dev.vars
+.amp/portals/*
+__pycache__/

@@ -1,0 +1,29 @@
+{
+  "name": "calendar-digest",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@12.2.1",
+  "engines": {
+    "node": ">=22",
+    "npm": ">=12"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "wrangler deploy --dry-run",
+    "prepare:cloudflare": "node scripts/prepare-cloudflare.mjs",
+    "db:local": "wrangler d1 migrations apply DB --local"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.5.0",
+    "@cloudflare/workers-types": "5.20261102.1",
+    "@tailwindcss/cli": "4.3.4",
+    "typescript": "^5.9.3",
+    "vitest": "~4.1.0",
+    "wrangler": "4.156.2"
+  },
+  "dependencies": {
+    "@danielmichaels/worker-kit": "file:worker/vendor/danielmichaels-worker-kit-0.1.1.tgz"
+  }
+}

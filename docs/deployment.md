@@ -1,5 +1,9 @@
 # Deployment Runbook
 
+This is the retained **legacy Go/Dokploy** runbook. For the staged Cloudflare
+replacement and safe data transfer, use [workers.md](./workers.md). Do not start
+both senders against the same recipients.
+
 ## Google Cloud Setup
 
 ### 1. Create a GCP Project

@@ -2,7 +2,37 @@
 
 > Nightly per-recipient digest of tomorrow's Google Calendar events
 
+## Cloudflare Workers replacement
+
+The replacement runs on one Worker, D1 and a five-minute Cron Trigger. It keeps
+per-recipient timezone schedules, multi-calendar Google reads, private digest
+links, Telegram/email delivery, retries, access alerts and the operator UI.
+Every HTTP route is protected by Cloudflare Access using Worker Kit, including
+digest links and diagnostics. There is no public or Basic-auth fallback.
+Production is deployed at `calendar.danielms.site`, behind the
+`danielms.cloudflareaccess.com` organization. Automation and delivery are disabled;
+the production D1 schema is empty. No staging environment was created. The old
+Dokploy app remains unchanged and active until an approved data migration and
+cutover. The Go app below is retained for rollback.
+
+See [the Worker runbook](docs/workers.md) for Amp-only management, secrets,
+consistent SQLite transfer, rehearsal, cutover and rollback. No local-machine
+Cloudflare login is required. `.agents/setup` prepares the Worker and Go
+toolchains for orbs; `.agents/resume` performs fast readiness checks.
+
+```shell copy Copy Worker Development
+npm install --ignore-scripts
+npm run db:local
+npm run dev
+```
+
+Use `.dev.vars.example` for development-only settings. Production sends are off
+by default. `npm run check`, `npm test`, and `npm run build` check the Worker;
+the build command does not deploy.
+
 ## Running it
+
+The following sections describe the retained Go/container application.
 
 Nothing needs installing first. SQLite is a local file under `database/`.
 

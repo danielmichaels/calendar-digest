@@ -1,0 +1,5 @@
+services:
+  worker:
+    command: npm run dev -- --ip 0.0.0.0 --port 8787
+    port: 8787
+    portal: true
