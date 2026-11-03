@@ -10,45 +10,158 @@ There is no Queue, container, SMTP server or Litestream
 process. D1 stores snapshots and a transactional delivery outbox. This suits the
 current small, once-daily workload without losing retries or timezone schedules.
 
-The checked-in configuration is **inactive**: automation and delivery are false,
-public Worker URLs are disabled, and production is deployed at the new
-`calendar.danielms.site` hostname behind whole-host Access. Its D1 schema is
-initialized but contains no recipients, targets, snapshots or deliveries. No
-staging resources were created. The Go application, container files and migrations
-remain available for rollback. CI only checks code; it does not deploy.
+Production is **active** after Daniel's approved cutover on 3 November 2026:
+automation and delivery are true, public Worker URLs are disabled, and production
+is deployed at `calendar.danielms.site` behind whole-host Access. D1 matches the
+final stopped-source backup at activation and is now the source of truth.
+No staging resources were created.
+The Go application, container files and migrations remain available for rollback.
+CI only checks code; it does not deploy.
 
 ## Provisioned production state — 3 November 2026
 
 | Resource | Value |
 | --- | --- |
 | Worker | `calendar-digest` |
-| Deployed version | `baa7bc92-d523-40de-acb0-6e41eeca3589` |
+| Initial deployed version | `baa7bc92-d523-40de-acb0-6e41eeca3589` |
 | Account | `838426fc87fcbeed8c0977bd7dccecad` |
 | D1 database | `1682e65a-a930-4a63-bcb9-38f8984fddb1` (`calendar-digest`, Oceania) |
 | Access application | `8db0d726-7d00-45ea-9c99-68c11d69d7e2` |
 | Canonical hostname | `calendar.danielms.site` |
 | Access organization | `danielms.cloudflareaccess.com` |
 | Access policy | Only `dan@danielms.site`, existing identity provider, 24-hour session |
-| Schedule | `*/5 * * * *`, with both safety flags false |
+| Schedule | `*/5 * * * *`, with both safety flags true after cutover |
 
-The random CSRF secret is configured; Google, Telegram and email credentials are
-not. API readback confirmed the bindings, schedule, empty application tables and
-foreign-key check. The initial migration is recorded in `d1_migrations`.
+The CSRF secret and six integration settings are configured as Worker secrets:
+`GOOGLE_SERVICE_ACCOUNT_JSON`, `TELEGRAM_BOT_TOKEN`, `ALERT_TELEGRAM_CHAT_ID`,
+`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` and `EMAIL_FROM`. The existing
+private settings file was retained with owner-only permissions. Upload used a
+separately approved five-minute Workers Scripts Write token, transferred to the
+orb encrypted, then immediately revoked. Temporary key files were removed.
+API readback confirmed all secret names, both safety flags false and unchanged
+rehearsal counts with an empty outbox. The credential upload made no Google,
+Telegram or email requests. Secret updates create new Worker versions; the table records the
+initial deployment, not the current secret-bearing version. The initial database
+migration is recorded in `d1_migrations`.
 Unauthenticated HTTP checks redirect the app, digest links, assets and diagnostics
-to the correct Access organization. Authenticated production UI/save and real
-providers still need verification. The local signed-JWT UI and CSRF tests do not
-replace those checks.
+to the correct Access organization. Daniel successfully logged in to the
+production overview. Google read access passed the separate check below and the
+active Worker's scheduled verification. An authenticated save and actual delivery
+provider success remain unverified; login and calendar checks do not prove them.
 
-The existing Dokploy application, hostname and data are unchanged. This is a
-deployed **inactive replacement**, not a completed data migration or cutover.
-Do not point old links at the new host without an approved compatibility plan.
-Before final import, use this empty production database for the approved
-rehearsal, export evidence and then explicitly approve clearing only its imported
-rehearsal rows, or create a fresh final D1 database and update the binding.
+Dokploy is stopped and its volume is retained. Its legacy hostname has not been
+rerouted; old-host links do not automatically redirect to the new host. Tokens
+remain intact on the new host, and new messages use the canonical hostname.
+Do not point old links at the new host without a compatibility plan, or repeat
+the import over this nonempty target or bypass its empty-target guard.
 
 Deployment, remote database writes, secret changes, DNS/routes, integration
 changes, stopping the old sender and deletion each need approval. Do not run two
 active senders against the same recipients.
+
+## Final cutover — 3 November 2026
+
+Daniel explicitly approved activation and cutover. The source container was
+confirmed exited before and after a fresh SQLite online backup, with unchanged
+container identity/start/finish/PID and source main/WAL hashes. No unfinished
+River sends existed; the two retained send jobs were completed. The source was
+not restarted, drained or modified. Its volume and private backups are retained.
+
+The final backup SHA256 is
+`1d6c5453e4a9a03708f25adbed5653a76a64d0bf2101748872e0201916c9e051`.
+Its integrity and foreign keys passed. The final export passed the unfinished-send
+guard. All application columns in recipients (2), targets (3) and snapshots (177)
+already matched the final source hashes exactly, including tokens and settings;
+those rows were retained rather than needlessly deleted/reimported. Only app state
+differed. A complete pre-cutover D1 SQL export was privately downloaded, restored
+locally and passed integrity/foreign-key checks before reconciliation.
+
+With both flags still false and the outbox empty, a guarded state import replaced
+the two rehearsal verification-state rows with the final source's one row. All
+four application-table counts and SHA256 hashes then matched the final backup.
+All 177 tokens were distinct, no snapshot had a null notified timestamp, foreign
+keys were clean and the outbox remained empty. No historical jobs were recreated.
+
+At 06:01:12 UTC (16:01 Brisbane), the settings API deployed version
+`bcffcf2d-c9a5-4fc0-9ac0-08c3b5367f58` at 100% with both
+`AUTOMATION_ENABLED=true` and `DELIVERY_ENABLED=true`. Readback verified the D1
+binding, all seven secret bindings, the five-minute schedule and unchanged Access
+allow policy. `wrangler.jsonc` now records those active flags so later uploads do
+not silently disable delivery. Development `.dev.vars` must keep sending off.
+
+Post-activation readback confirmed the deployed Worker completed calendar
+verification (`calendar_access=ok`, `verified_day=2026-11-03`) and a scheduled tick
+at 06:05:26 UTC (`last_tick=ok`). The snapshot count stayed 177 and the outbox
+stayed empty: no historic sends were replayed. Both recipients next run at 20:00
+Australia/Brisbane on 3 November. Unauthenticated requests to the overview,
+health, static asset and a digest path were denied (HTTP 403) from the orb; the
+whole-host Access application and sole-user Allow policy remained unchanged.
+The configured email token passed a read-only sending-limits request (HTTP 200);
+its domains-list request was forbidden (HTTP 403), so this does not prove sender
+domain verification or a successful email delivery. No test messages were sent.
+
+Do not restart Dokploy against its stale database. Follow the state-aware rollback
+below once the Worker has sent or accepted edits. Legacy-host compatibility and
+the first successful real Telegram/email delivery remain separate verification
+gaps, not reasons to run a second sender.
+
+## Rehearsal result — 3 November 2026
+
+The source was backed up with Python's SQLite backup API against the host-mounted
+live database with its WAL available. The source container remained running and
+healthy during backup. The privately transferred copy's SHA256 matched, SQLite
+integrity and foreign keys passed, and files remain owner-only outside artifacts
+and Git. No source data, jobs or credentials were changed.
+
+Before import, both Worker safety flags were false. The business tables and
+outbox were empty, but `app_state` contained two verification-state rows. Import
+paused until Daniel separately approved removing only those rows. Their keys and
+timestamps were rechecked before removal; all application tables were then empty.
+The guarded export was imported through D1's presigned SQL import API.
+
+| Application table | Imported rows | Count and SHA256 match |
+| --- | ---: | --- |
+| `recipients` | 2 | Yes |
+| `notification_targets` | 3 | Yes |
+| `digest_snapshots` | 177 | Yes |
+| `app_state` | 1 | Yes |
+
+All exported application columns matched in primary-key order, including tokens,
+calendar IDs, timezone schedules, channel configuration, event JSON and notified
+timestamps. All 177 tokens remain distinct, generation defaults are 1, and the
+foreign-key check is clean. Two recipients and two targets remain enabled as in
+the source; global automation and delivery were verified false again afterward.
+The outbox has zero rows. No River jobs, delivery jobs or historical sends were
+recreated. The local rehearsal also proved a repeated import is refused without
+changing application rows. No repeat import was attempted remotely.
+
+The backup contained two retained completed River send jobs and no unfinished
+sends; the pending-send guard passed. All snapshots have `notified_at`, which
+does not prove every historical channel succeeded. No guesses or per-target
+delivery stamps were added. No Google, Telegram or email requests, test messages,
+hostname switches, draining or source shutdown occurred. Real provider validation and the
+final, quiesced backup/import/cutover remain separate work. The running source
+continues to change; this rehearsal copy must not become the final cutover copy.
+
+## Google read-access validation — 3 November 2026
+
+The application's actual `GoogleCalendar` and timezone code was compiled and run
+in the Amp orb with the same service-account credential uploaded to the Worker.
+Before reading Google, the current D1 recipients' full hash was checked against
+the private backup, so the validation covered the current imported settings.
+Both distinct configured calendars passed the event-list permission check and
+reported `reader` access, not merely free/busy access. Tomorrow's timezone-bounded
+event fetching, multi-calendar merging and conversion completed for both
+recipients for 4 November. OAuth returned HTTP 200; all six calendar event-list
+GET requests returned HTTP 200. Calendar IDs and event contents were withheld.
+
+The validation allowed only the OAuth token exchange and Google Calendar
+event-list GETs. It did not call the Worker's verification handler, create alerts
+or snapshots, update calendar events, or send messages. Afterward all four D1
+application-table counts and hashes still matched the rehearsal backup, the
+outbox remained empty, and automation and delivery were both false. Temporary
+validation code was removed. This proves real credential/calendar permissions
+from the orb; it is not an end-to-end check through the deployed Worker.
 
 ## Preserved contracts and changes
 
@@ -139,22 +252,25 @@ inspection, D1, Worker uploads, secrets, schedules, routes and logs. Wrangler CL
 is an alternative when a scoped token is securely configured in the orb, not a
 requirement for API management.
 
-Use the project-scoped MCP named `cloudflare`. A successful read on 3 November
-2026 verified `Dansult@pm.me's Account`, ID `838426fc87fcbeed8c0977bd7dccecad`,
+Use the personal **Cloudflare Personal** MCP, exposed as `cloudflare`. With
+Daniel's approval, the stale unauthenticated Calendar project override was
+disabled so this project inherits the working personal connection. A successful
+read on 3 November 2026 verified `Dansult@pm.me's Account`, ID `838426fc87fcbeed8c0977bd7dccecad`,
 and auth domain `danielms.cloudflareaccess.com`. The account also contains Cycle
 Reminder. Both account ID and Access team domain are pinned in `wrangler.jsonc`.
 The separate `cloudflare-api` connection exposes ToolboxFM's account
 `0d9eab177b3141f8fb23970c0d3c2eb0`, which is **wrong for Calendar Digest**.
 Do not create or deploy Calendar Digest resources there.
 
-The project connection is authenticated. Account, organization and Access policy
-checks, D1 schema initialization, Worker upload, secret configuration, schedule
-and new custom-domain creation have succeeded through this connection. Cycle
-Reminder supplied the identity-provider reference; its audience was not reused.
+The personal connection is authenticated and was used for safety checks and the
+approved D1 rehearsal import. Initial provisioning succeeded earlier through the
+project connection against the same account. Cycle Reminder supplied the
+identity-provider reference; its audience was not reused.
 Calendar Digest has its own application, audience and allowlist. Email entitlement and
 paid-plan status remain unverified. Never infer an account ID from an Access team
-name. If the project MCP asks for login again, reconnect that exact project-scoped
-connection in Amp rather than using the unrelated ToolboxFM connection.
+name. If authentication fails, inspect connection scope and metadata before
+reconnecting. A stale project override can hide the authenticated personal
+connection. Do not re-enable the unrelated global ToolboxFM connection.
 
 After approval, an Amp agent can:
 
@@ -275,8 +391,10 @@ tables. It refuses unfinished River sends or Worker deliveries: drain them or
 reconcile each target explicitly before proceeding. `notified_at` alone proves
 only that at least one channel succeeded, not that all channels succeeded.
 
-No staging environment is required. Rehearse in the approved empty production D1
-with both flags false and no real deliveries. The schema is already applied.
+No staging environment is required. The rehearsal above used the approved empty
+production D1 with both flags false and no real deliveries. It is now nonempty:
+repeating these steps needs a separately approved reset or a new database. The
+schema is already applied.
 Import using D1's documented import flow (upload the SQL to
 the presigned URL and poll the import bookmark), or execute these small INSERT
 statements in ordered bounded batches via the D1 `/query` API. Do not split SQL
@@ -300,8 +418,8 @@ python3 scripts/sqlite-transfer.py manifest /secure/imported-d1.db
 Check foreign keys, private links, paused recipients, channel configuration,
 timezones and multi-calendar event detail. Verify real calendar access before
 sending. Test real delivery only with an explicitly approved test recipient and
-no production recipients enabled. No real credential/provider or production
-import test has been done by this implementation.
+no production recipients enabled. The production D1 import rehearsal above has
+passed; real credential/provider delivery tests have not been performed.
 
 Configured legacy backup: B2 bucket `lookout-s3-backups`, prefix
 `calendar-digest`, endpoint `https://s3.us-west-002.backblazeb2.com`. Restore

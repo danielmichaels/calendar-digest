@@ -10,10 +10,11 @@ links, Telegram/email delivery, retries, access alerts and the operator UI.
 Every HTTP route is protected by Cloudflare Access using Worker Kit, including
 digest links and diagnostics. There is no public or Basic-auth fallback.
 Production is deployed at `calendar.danielms.site`, behind the
-`danielms.cloudflareaccess.com` organization. Automation and delivery are disabled;
-the production D1 schema is empty. No staging environment was created. The old
-Dokploy app remains unchanged and active until an approved data migration and
-cutover. The Go app below is retained for rollback.
+`danielms.cloudflareaccess.com` organization. Automation and delivery were enabled
+with Daniel's approval on 3 November 2026 after the final stopped-source backup
+and D1 hash comparison. Dokploy is stopped; its volume and the Go app below are
+retained for rollback. Do not restart it while the Worker is sending.
+No staging environment was created.
 
 See [the Worker runbook](docs/workers.md) for Amp-only management, secrets,
 consistent SQLite transfer, rehearsal, cutover and rollback. No local-machine
@@ -26,8 +27,9 @@ npm run db:local
 npm run dev
 ```
 
-Use `.dev.vars.example` for development-only settings. Production sends are off
-by default. `npm run check`, `npm test`, and `npm run build` check the Worker;
+Use `.dev.vars.example` for development-only settings with sending disabled.
+`wrangler.jsonc` now records the active production flags: a real deployment keeps
+sending enabled. `npm run check`, `npm test`, and `npm run build` check the Worker;
 the build command does not deploy.
 
 ## Running it

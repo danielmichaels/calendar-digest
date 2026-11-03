@@ -11,8 +11,8 @@
   "observability": { "enabled": true },
   "triggers": { "crons": ["*/5 * * * *"] },
   "vars": {
-    "AUTOMATION_ENABLED": "false",
-    "DELIVERY_ENABLED": "false",
+    "AUTOMATION_ENABLED": "true",
+    "DELIVERY_ENABLED": "true",
     "ACCESS_HOST": "calendar.danielms.site",
     "ACCESS_TEAM_DOMAIN": "danielms.cloudflareaccess.com",
     "ACCESS_AUD": "1d1152e91266bb8fc5b8fd0107e792c5e52428bcc9ee07483c39bc890fd4361c",
